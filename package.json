@@ -1,0 +1,22 @@
+{
+  "name": "spendwise",
+  "version": "2.0.0",
+  "description": "SpendWise — Smart expense tracking",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve": "node server.js",
+    "serve:dev": "node server.js --dev",
+    "test": "vitest run --config vitest.config.js",
+    "test:watch": "vitest --config vitest.config.js",
+    "test:coverage": "vitest run --config vitest.config.js --coverage"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^3.2.1",
+    "jsdom": "^29.1.1",
+    "vite": "^6.3.5",
+    "vitest": "^3.2.1"
+  }
+}
