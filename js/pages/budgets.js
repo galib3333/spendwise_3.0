@@ -121,7 +121,7 @@ export function renderBudgets(container) {
   `;
 
   document.getElementById('addBudgetBtn')?.addEventListener('click', openAddBudget);
-  document.getElementById('budgetSaveBtn')?.addEventListener('click', saveBudget);
+  bindBudgetSaveBtnOnce();
 
   container.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', e => {
@@ -130,4 +130,11 @@ export function renderBudgets(container) {
       else if(btn.dataset.action === 'delete') deleteBudgetHandler(btn.dataset.id);
     });
   });
+}
+
+let _budgetSaveBound = false;
+function bindBudgetSaveBtnOnce() {
+  if(_budgetSaveBound) return;
+  _budgetSaveBound = true;
+  document.getElementById('budgetSaveBtn')?.addEventListener('click', saveBudget);
 }

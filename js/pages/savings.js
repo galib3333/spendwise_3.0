@@ -165,7 +165,7 @@ export function renderSavings(container) {
   `;
 
   document.getElementById('addGoalBtn')?.addEventListener('click', openAddGoal);
-  document.getElementById('goalSaveBtn')?.addEventListener('click', saveGoal);
+  bindGoalSaveBtnOnce();
 
   container.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', e => {
@@ -178,4 +178,11 @@ export function renderSavings(container) {
   setTimeout(() => {
     drawLineChart('savingsTrend', trend.data, trend.labels, '#8faa7b');
   }, 50);
+}
+
+let _goalSaveBound = false;
+function bindGoalSaveBtnOnce() {
+  if(_goalSaveBound) return;
+  _goalSaveBound = true;
+  document.getElementById('goalSaveBtn')?.addEventListener('click', saveGoal);
 }

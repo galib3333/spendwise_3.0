@@ -21,8 +21,11 @@ const SHORTCUTS = [
   { key: '?', ctrl: false, shift: true, action: () => showShortcutsHelp(), label: 'Show Shortcuts' },
 ];
 
+let _shortcutsHandler = null;
+
 export function initKeyboardShortcuts() {
-  document.addEventListener('keydown', (e) => {
+  destroyKeyboardShortcuts();
+  _shortcutsHandler = (e) => {
     // Ignore if user is typing in an input
     const tag = e.target.tagName.toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
@@ -43,7 +46,15 @@ export function initKeyboardShortcuts() {
         return;
       }
     }
-  });
+  };
+  document.addEventListener('keydown', _shortcutsHandler);
+}
+
+export function destroyKeyboardShortcuts() {
+  if(_shortcutsHandler) {
+    document.removeEventListener('keydown', _shortcutsHandler);
+    _shortcutsHandler = null;
+  }
 }
 
 function showShortcutsHelp() {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spendwise-v5';
+const CACHE_NAME = 'spendwise-v6';
 const PRECACHE = [
   '/',
   '/index.html',

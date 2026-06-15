@@ -1,5 +1,5 @@
 // ===== MAIN APPLICATION ENTRY POINT =====
-import { initStore, getSettings, updateSettings, addTransaction, getTransactions, getRecurringList, addBulkTransactions, updateRecurring, addRecurring, getStorageMode, getAppMode, setAppMode, getBusinessProfile } from './store.js';
+import { initStore, getSettings, updateSettings, addTransaction, getTransactions, getRecurringList, addBulkTransactions, updateRecurring, addRecurring, getAppMode, setAppMode } from './store.js';
 import { initRouter, navigate, registerPage } from './router.js';
 import { initModals } from './modals.js';
 import { setChartUtils } from './charts.js';
@@ -7,7 +7,6 @@ import { fmt, fmtShort, EXPENSE_CATS, validateTransaction, uid, today } from './
 import { applyTheme } from './pages/settings.js';
 import { toastSuccess, toastError, toastWarning } from './toast.js';
 import { initLockScreen, lockApp, resetLockTimer, stopLockTimer } from './lockscreen.js';
-import { isLocked, isLockEnabled } from './security.js';
 import { initKeyboardShortcuts } from './shortcuts.js';
 import { shouldShowOnboarding, showOnboarding } from './onboarding.js';
 

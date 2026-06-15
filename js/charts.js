@@ -57,16 +57,20 @@ function roundRect(ctx, x, y, w, h, r) {
 // ease-out cubic
 function ease(t) { return 1 - Math.pow(1 - t, 3); }
 
-function animate(duration, drawFrame) {
+const _activeAnimations = new Map();
+
+function animate(canvasId, duration, drawFrame) {
   if(typeof requestAnimationFrame === 'undefined') { drawFrame(1); return; }
+  if(_activeAnimations.has(canvasId)) cancelAnimationFrame(_activeAnimations.get(canvasId));
   const start = performance.now();
   function tick(now) {
     const elapsed = now - start;
     const t = Math.min(elapsed / duration, 1);
     drawFrame(ease(t));
-    if(t < 1) requestAnimationFrame(tick);
+    if(t < 1) _activeAnimations.set(canvasId, requestAnimationFrame(tick));
+    else _activeAnimations.delete(canvasId);
   }
-  requestAnimationFrame(tick);
+  _activeAnimations.set(canvasId, requestAnimationFrame(tick));
 }
 
 export function drawPieChart(canvasId, data, total, currency) {
@@ -135,7 +139,7 @@ export function drawPieChart(canvasId, data, total, currency) {
     }
   }
 
-  animate(duration, drawSlice);
+  animate(canvasId, duration, drawSlice);
 }
 
 export function drawBarChart(canvasId, data, labels, color, currency) {
@@ -194,7 +198,7 @@ export function drawBarChart(canvasId, data, labels, color, currency) {
     });
   }
 
-  animate(duration, drawFrame);
+  animate(canvasId, duration, drawFrame);
 }
 
 export function drawLineChart(canvasId, data, labels, color) {
@@ -284,7 +288,7 @@ export function drawLineChart(canvasId, data, labels, color) {
     });
   }
 
-  animate(duration, drawFrame);
+  animate(canvasId, duration, drawFrame);
 }
 
 export function drawHealthRing(canvasId, score) {
@@ -337,5 +341,5 @@ export function drawHealthRing(canvasId, score) {
     }
   }
 
-  animate(duration, drawFrame);
+  animate(canvasId, duration, drawFrame);
 }

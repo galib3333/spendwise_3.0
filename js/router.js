@@ -2,11 +2,12 @@
 import { escapeHTML } from './sanitize.js';
 let currentPage = 'dashboard';
 const pageRenderers = {};
-let onNavigate = null;
 
 export function registerPage(name, renderFn) {
   pageRenderers[name] = renderFn;
 }
+
+export function getCurrentPage() { return currentPage; }
 
 export function navigate(page) {
   if(!pageRenderers[page]) return;
@@ -37,8 +38,6 @@ export function navigate(page) {
   }
 
   toggleSidebar(false);
-
-  if(onNavigate) onNavigate(page);
 }
 
 function toggleSidebar(force) {

@@ -149,17 +149,17 @@ function notify(key) {
   if (listeners.has('*')) listeners.get('*').forEach(fn => fn(state));
 }
 
-// ===== GETTERS =====
-export function getTransactions() { return state.transactions; }
-export function getBudgets() { return state.budgets; }
-export function getSavingsGoals() { return state.savingsGoals; }
-export function getRecurringList() { return state.recurringList; }
-export function getSettings() { return state.settings; }
+// ===== GETTERS (return copies to prevent external mutation) =====
+export function getTransactions() { return [...state.transactions]; }
+export function getBudgets() { return [...state.budgets]; }
+export function getSavingsGoals() { return [...state.savingsGoals]; }
+export function getRecurringList() { return [...state.recurringList]; }
+export function getSettings() { return { ...state.settings }; }
 export function getStorageMode() { return _storageMode; }
 export function getAppMode() { return state.appMode; }
-export function getBusinessProfile() { return state.businessProfile; }
-export function getBusinessTransactions() { return state.businessTransactions; }
-export function getBusinessCategories() { return state.businessCategories; }
+export function getBusinessProfile() { return state.businessProfile ? { ...state.businessProfile } : null; }
+export function getBusinessTransactions() { return [...state.businessTransactions]; }
+export function getBusinessCategories() { return [...state.businessCategories]; }
 
 // ===== TRANSACTIONS =====
 export function addTransaction(data) {

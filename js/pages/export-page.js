@@ -445,6 +445,7 @@ function updatePreview() {
   const tbody = document.getElementById('csvPreviewBody');
   const countEl = document.getElementById('csvPreviewCount');
   if(!tbody) return;
+  const currency = getSettings().currency;
 
   const previewRows = rows.slice(0, 20);
   let validCount = 0;
@@ -459,7 +460,7 @@ function updatePreview() {
         <td class="text-sm">${escapeHTML(t.date)}</td>
         <td><span class="badge badge-${t.type === 'income' ? 'success' : 'danger'}" style="font-size:0.5rem">${t.type}</span></td>
         <td class="text-sm">${cat.icon} ${escapeHTML(cat.name)}</td>
-        <td class="text-sm" style="font-weight:600;color:${t.type === 'income' ? 'var(--green)' : 'var(--red)'}">${t.amount > 0 ? fmt(t.amount, '৳') : '—'}</td>
+        <td class="text-sm" style="font-weight:600;color:${t.type === 'income' ? 'var(--green)' : 'var(--red)'}">${t.amount > 0 ? fmt(t.amount, currency) : '—'}</td>
         <td class="text-sm" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(t.description) || '—'}</td>
         <td class="text-sm">${valid ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--red)">✗</span>'}</td>
       </tr>

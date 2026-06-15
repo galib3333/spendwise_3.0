@@ -6,7 +6,6 @@ import { toastSuccess, toastInfo, toastError } from '../toast.js';
 import { openModal, closeModal } from '../modals.js';
 
 const FREQ_MULT = { weekly: 4.33, biweekly: 2.16, monthly: 1, quarterly: 0.33, yearly: 0.083 };
-const FREQ_YEARLY = { weekly: 52, biweekly: 26, monthly: 12, quarterly: 4, yearly: 1 };
 const FREQ_PER_YEAR = { weekly: 52, biweekly: 26, monthly: 12, quarterly: 4, yearly: 1 };
 const FREQ_LABELS = { weekly: 'Weekly', biweekly: 'Bi-Weekly', monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' };
 
@@ -24,7 +23,7 @@ function remainingMonths(r) {
 
 function remainingCost(r) {
   const rm = remainingMonths(r);
-  if (rm === null) return r.amount * (FREQ_YEARLY[r.frequency] || 1);
+  if (rm === null) return r.amount * (FREQ_PER_YEAR[r.frequency] || 1);
   const perYear = FREQ_PER_YEAR[r.frequency] || 12;
   const totalOccurrences = Math.ceil((rm / 12) * perYear);
   return r.amount * totalOccurrences;

@@ -28,7 +28,7 @@ export function showToast(message, options = {}) {
   const iconColor = type === 'success' ? 'var(--green)' : type === 'error' ? 'var(--red)' : type === 'warning' ? 'var(--yellow)' : 'var(--blue)';
 
   let html = `<span style="color:${iconColor};font-size:1rem;flex-shrink:0">${icon}</span>`;
-  html += `<span style="flex:1">${message}</span>`;
+  html += `<span style="flex:1">${String(message).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span>`;
 
   if(action) {
     html += `<button class="toast-action" style="background:none;border:1px solid var(--border);color:var(--text);padding:4px 10px;font-family:var(--font-mono);font-size:0.6rem;text-transform:uppercase;letter-spacing:1px;cursor:pointer;flex-shrink:0;transition:all 0.2s">${actionLabel}</button>`;

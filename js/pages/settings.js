@@ -128,9 +128,9 @@ export function renderSettings(container) {
   document.getElementById('lockToggle')?.addEventListener('click', () => {
     if(isLockEnabled()) {
       disableLock();
-      document.getElementById('autoLockGroup').style.display = 'none';
-      document.getElementById('pinActions').style.display = 'none';
-      document.getElementById('lockToggle').classList.remove('active');
+      document.getElementById('autoLockGroup')?.style && (document.getElementById('autoLockGroup').style.display = 'none');
+      document.getElementById('pinActions')?.style && (document.getElementById('pinActions').style.display = 'none');
+      document.getElementById('lockToggle')?.classList.remove('active');
       toastSuccess('Lock screen disabled');
     } else {
       showLockScreen(() => {
@@ -174,7 +174,7 @@ export function renderSettings(container) {
     overlay.className = 'modal-overlay show';
     overlay.innerHTML = `<div class="modal" style="max-width:600px;max-height:80vh;overflow-y:auto">
       <h3>Privacy Policy</h3>
-      <div style="color:var(--text2);font-size:0.8rem;line-height:1.6;white-space:pre-wrap">${policy}</div>
+      <div style="color:var(--text2);font-size:0.8rem;line-height:1.6;white-space:pre-wrap">${escapeHTML(policy)}</div>
       <div class="modal-actions">
         <button class="btn btn-primary" id="privacyCloseBtn">Close</button>
       </div>
