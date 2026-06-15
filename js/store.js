@@ -211,10 +211,13 @@ export function updateBudget(id, data) {
 }
 
 export function deleteBudget(id) {
-  const removed = state.budgets.find(b => b.id === id);
-  state.budgets = state.budgets.filter(b => b.id !== id);
-  persistSync(); notify('budgets');
-  return removed;
+  const idx = state.budgets.findIndex(b => b.id === id);
+  if (idx >= 0) {
+    const removed = state.budgets.splice(idx, 1)[0];
+    persistSync(); notify('budgets');
+    return removed;
+  }
+  return null;
 }
 
 // ===== SAVINGS GOALS =====
@@ -234,10 +237,13 @@ export function updateGoal(id, data) {
 }
 
 export function deleteGoal(id) {
-  const removed = state.savingsGoals.find(g => g.id === id);
-  state.savingsGoals = state.savingsGoals.filter(g => g.id !== id);
-  persistSync(); notify('savingsGoals');
-  return removed;
+  const idx = state.savingsGoals.findIndex(g => g.id === id);
+  if (idx >= 0) {
+    const removed = state.savingsGoals.splice(idx, 1)[0];
+    persistSync(); notify('savingsGoals');
+    return removed;
+  }
+  return null;
 }
 
 // ===== RECURRING =====
@@ -257,10 +263,13 @@ export function updateRecurring(id, data) {
 }
 
 export function deleteRecurring(id) {
-  const removed = state.recurringList.find(r => r.id === id);
-  state.recurringList = state.recurringList.filter(r => r.id !== id);
-  persistSync(); notify('recurringList');
-  return removed;
+  const idx = state.recurringList.findIndex(r => r.id === id);
+  if (idx >= 0) {
+    const removed = state.recurringList.splice(idx, 1)[0];
+    persistSync(); notify('recurringList');
+    return removed;
+  }
+  return null;
 }
 
 export function toggleRecurringActive(id) {
@@ -334,10 +343,13 @@ export function updateBusinessCategory(id, data) {
 }
 
 export function deleteBusinessCategory(id) {
-  const removed = state.businessCategories.find(c => c.id === id);
-  state.businessCategories = state.businessCategories.filter(c => c.id !== id);
-  persistSync(); notify('businessCategories');
-  return removed;
+  const idx = state.businessCategories.findIndex(c => c.id === id);
+  if (idx >= 0) {
+    const removed = state.businessCategories.splice(idx, 1)[0];
+    persistSync(); notify('businessCategories');
+    return removed;
+  }
+  return null;
 }
 
 // ===== BULK OPERATIONS =====

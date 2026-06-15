@@ -81,7 +81,7 @@ function saveRecurring() {
     toastSuccess('Recurring expense added');
   }
   closeModal('recurringModal');
-  renderRecurring(document.getElementById('mainContent'));
+  renderRecurring(_recurringContainer);
 }
 
 function deleteRecurringHandler(id) {
@@ -89,18 +89,20 @@ function deleteRecurringHandler(id) {
   const removed = deleteRecurring(id);
   if(removed) {
     toastInfo('Recurring deleted', {
-      action: () => { addRecurring(removed); renderRecurring(document.getElementById('mainContent')); },
+      action: () => { addRecurring(removed); renderRecurring(_recurringContainer); },
       actionLabel: 'Undo',
       duration: 5000
     });
   }
-  renderRecurring(document.getElementById('mainContent'));
+  renderRecurring(_recurringContainer);
 }
 
 function toggleHandler(id) {
   toggleRecurringActive(id);
-  renderRecurring(document.getElementById('mainContent'));
+  renderRecurring(_recurringContainer);
 }
+
+let _recurringContainer = null;
 
 let _saveBtnBound = false;
 function bindSaveBtnOnce() {
@@ -110,6 +112,7 @@ function bindSaveBtnOnce() {
 }
 
 export function renderRecurring(container) {
+  _recurringContainer = container;
   const settings = getSettings();
   const recurringList = getRecurringList();
   const active = recurringList.filter(r => r.active);

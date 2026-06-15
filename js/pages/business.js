@@ -5,12 +5,10 @@ import {
   getBusinessCategories, addBusinessCategory, updateBusinessCategory, deleteBusinessCategory,
   getSettings
 } from '../store.js';
-import { fmt, today, uid } from '../utils.js';
+import { fmt, fmtCompact, today, uid, BUSINESS_PAYMENT_LABELS, getMonthStart, getMonthEnd } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastError, toastWarning } from '../toast.js';
 import { navigate } from '../router.js';
-
-const PAYMENT_LABELS = { cash: 'Cash', card: 'Card', bank: 'Bank Transfer', mobile: 'Mobile Payment' };
 
 const BUSINESS_TYPES = [
   { id: 'retail', name: 'Retail / Departmental Store', icon: '🏬' },
@@ -124,10 +122,9 @@ function requireProfile(container) {
 }
 
 function getMonthRange(offset = 0) {
-  const now = new Date();
-  const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-  const start = d.toISOString().slice(0, 7) + '-01';
-  const end = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const start = getMonthStart(offset);
+  const end = getMonthEnd(offset);
+  const d = new Date(start + 'T00:00:00');
   return { start, end, date: d };
 }
 
@@ -194,9 +191,8 @@ function renderSummaryCards(items, type, currency) {
   const filtered = type ? items.filter(t => t.type === type) : items;
   const total = sumAmount(filtered);
   const tax = sumTax(filtered);
-  const now = new Date();
-  const ms = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
-  const me = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const ms = getMonthStart();
+  const me = getMonthEnd();
   const thisMonth = sumAmount(filterByDateRange(filtered, ms, me));
 
   const label = type === 'expense' ? 'Total Expenses' : type === 'income' ? 'Total Income' : 'Total';
@@ -440,7 +436,7 @@ function openBizTransactionModal(container, type, existingTxn = null) {
       <div class="input-group">
         <label for="bizPayment">Payment Method</label>
         <select class="input" id="bizPayment">
-          ${Object.entries(PAYMENT_LABELS).map(([k, v]) => `<option value="${k}" ${isEdit && existingTxn.payment === k ? 'selected' : ''}>${v}</option>`).join('')}
+          ${Object.entries(BUSINESS_PAYMENT_LABELS).map(([k, v]) => `<option value="${k}" ${isEdit && existingTxn.payment === k ? 'selected' : ''}>${v}</option>`).join('')}
         </select>
       </div>
       <div id="bizTaxInfo" class="text-sm text-muted mb-16" style="padding:8px;background:var(--bg3);display:none">
@@ -557,7 +553,7 @@ function renderFilterBar(type, total) {
       </select>
       <select class="input" id="bizFilterPayment" style="width:auto;min-width:120px">
         <option value="">All Payments</option>
-        ${Object.entries(PAYMENT_LABELS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}
+        ${Object.entries(BUSINESS_PAYMENT_LABELS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}
       </select>
       <input type="date" class="input" id="bizFilterFrom" style="width:auto" title="From date">
       <input type="date" class="input" id="bizFilterTo" style="width:auto" title="To date">
@@ -826,8 +822,8 @@ export function renderBizReports(container) {
   const catMap = getCategoryMap(categories);
 
   const now = new Date();
-  const monthStart = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const monthStart = getMonthStart();
+  const monthEnd = getMonthEnd();
 
   const allExpenses = txns.filter(t => t.type === 'expense');
   const allIncome = txns.filter(t => t.type === 'income');
@@ -968,8 +964,8 @@ function drawBizPLChart(canvasId, allExpenses, allIncome, currency) {
   const now = new Date();
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const ms = d.toISOString().slice(0, 7) + '-01';
-    const me = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+    const ms = getMonthStart(-i);
+    const me = getMonthEnd(-i);
     const exp = filterByDateRange(allExpenses, ms, me).reduce((s, t) => s + t.amount, 0);
     const inc = filterByDateRange(allIncome, ms, me).reduce((s, t) => s + t.amount, 0);
     months.push({ label: d.toLocaleDateString('en-US', { month: 'short' }), income: inc, expense: exp, profit: inc - exp });
@@ -990,8 +986,8 @@ function drawBizPLChart(canvasId, allExpenses, allIncome, currency) {
   ctx.font = '10px var(--font-mono)';
   ctx.textAlign = 'right';
   ctx.fillText(fmt(0, currency), padLeft - 8, zeroY + 4);
-  ctx.fillText('+' + fmtShort(maxAbs, currency), padLeft - 8, padTop + 10);
-  ctx.fillText('-' + fmtShort(maxAbs, currency), padLeft - 8, H - padBottom);
+    ctx.fillText(fmtCompact(maxAbs, currency), padLeft - 8, padTop + 10);
+    ctx.fillText('-' + fmtCompact(maxAbs, currency), padLeft - 8, H - padBottom);
 
   ctx.strokeStyle = 'rgba(128,128,128,0.3)';
   ctx.lineWidth = 1;
@@ -1018,12 +1014,6 @@ function drawBizPLChart(canvasId, allExpenses, allIncome, currency) {
   });
 }
 
-function fmtShort(n, currency) {
-  if (n >= 100000) return currency + (n / 100000).toFixed(1) + 'L';
-  if (n >= 1000) return currency + (n / 1000).toFixed(1) + 'K';
-  return currency + n.toFixed(0);
-}
-
 // ===== CSV EXPORT =====
 
 function exportBizTransactionsCSV(type) {
@@ -1040,7 +1030,7 @@ function exportBizTransactionsCSV(type) {
       (t.description || '').replace(/,/g, ';'),
       t.amount.toFixed(2),
       (t.tax || 0).toFixed(2),
-      PAYMENT_LABELS[t.payment] || t.payment
+      BUSINESS_PAYMENT_LABELS[t.payment] || t.payment
     ].join(',');
   }).join('\n');
 
@@ -1087,7 +1077,7 @@ function exportBizReportCSV(profile, settings) {
   csv += '\nTransactions\nDate,Type,Category,Amount,Tax,Description,Payment\n';
   txns.forEach(t => {
     const cat = catMap[t.category];
-    csv += `${t.date},${t.type},"${cat ? cat.name : 'Unknown'}",${t.amount.toFixed(2)},${(t.tax || 0).toFixed(2)},"${(t.description || '').replace(/"/g, '""')}",${PAYMENT_LABELS[t.payment] || t.payment}\n`;
+    csv += `${t.date},${t.type},"${cat ? cat.name : 'Unknown'}",${t.amount.toFixed(2)},${(t.tax || 0).toFixed(2)},"${(t.description || '').replace(/"/g, '""')}",${BUSINESS_PAYMENT_LABELS[t.payment] || t.payment}\n`;
   });
 
   const blob = new Blob([csv], { type: 'text/csv' });

@@ -23,14 +23,14 @@ export function navigate(page) {
     main.innerHTML = '';
     try {
       pageRenderers[page](main);
-    } catch(err) {
-      console.error(`Error rendering page "${page}":`, err);
+    } catch(e) {
+      console.error(`Error rendering page "${page}":`, e);
       main.innerHTML = `
         <div style="padding:40px;text-align:center;color:var(--text2)">
           <div style="font-size:3rem;margin-bottom:16px">⚠️</div>
           <h2 style="color:var(--red)">Something went wrong</h2>
           <p style="margin:12px 0">Failed to load the ${escapeHTML(page)} page.</p>
-          <p style="margin:0 0 20px;font-size:0.75rem;color:var(--text3)">${escapeHTML(err.message || 'Unknown error')}</p>
+          <p style="margin:0 0 20px;font-size:0.75rem;color:var(--text3)">${escapeHTML(e.message || 'Unknown error')}</p>
           <button onclick="location.reload()" style="margin-top:12px;padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer">Reload Page</button>
         </div>
       `;

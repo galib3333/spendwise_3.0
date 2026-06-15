@@ -23,12 +23,43 @@ export const INCOME_CATS = [
 ];
 export const ALL_CATS = [...EXPENSE_CATS, ...INCOME_CATS];
 export const PAYMENT_LABELS = {cash:'Cash',card:'Debit Card',credit:'Credit Card',upi:'UPI',bank:'Bank Transfer',wallet:'Digital Wallet'};
+export const BUSINESS_PAYMENT_LABELS = {cash:'Cash',card:'Card',bank:'Bank Transfer',mobile:'Mobile Payment'};
 
 // ===== HELPERS =====
 export function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 export function fmt(n, currency) { return currency + Number(n||0).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 export function fmtShort(n, currency) { return currency + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:0}); }
+export function fmtCompact(n, currency) {
+  if (n >= 100000) return currency + (n / 100000).toFixed(1) + 'L';
+  if (n >= 1000) return currency + (n / 1000).toFixed(1) + 'K';
+  return currency + n.toFixed(0);
+}
 export function today() { return new Date().toISOString().slice(0,10); }
+
+// ===== DATE HELPERS =====
+export function getMonthStart(offset = 0) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + offset);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+export function getMonthEnd(offset = 0) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + offset + 1, 0);
+  return d.toISOString().slice(0, 10);
+}
+
+// ===== SHARED QUERY HELPERS =====
+export function getExpenses(transactions, start, end) {
+  return transactions.filter(t => t.type === 'expense' && t.date >= start && t.date <= end);
+}
+export function getIncome(transactions, start, end) {
+  return transactions.filter(t => t.type === 'income' && t.date >= start && t.date <= end);
+}
+export function sumByCategory(items) {
+  const map = {};
+  items.forEach(t => { map[t.category] = (map[t.category] || 0) + t.amount; });
+  return Object.entries(map).map(([category, amount]) => ({ category, amount })).sort((a, b) => b.amount - a.amount);
+}
 
 export function formatDate(dateStr, format) {
   if(!dateStr) return '';
@@ -57,7 +88,7 @@ export function getWeekDates(date) {
 
 // ===== CSV ESCAPING =====
 export function escapeCSV(val) {
-  const s = String(val == null ? '' : val);
+  const s = String(val === null || val === undefined ? '' : val);
   if(s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
     return '"' + s.replace(/"/g, '""') + '"';
   }
@@ -266,7 +297,7 @@ export function validateGoal(data) {
   if(data.name && data.name.length > 100) errors.push('Goal name must be 100 characters or less');
   if(!data.target || isNaN(data.target) || data.target <= 0) errors.push('Target amount must be a positive number');
   if(data.target > MAX_AMOUNT) errors.push('Target amount exceeds maximum allowed');
-  if(data.current != null && (isNaN(data.current) || data.current < 0)) errors.push('Current amount cannot be negative');
+  if(data.current !== null && data.current !== undefined && (isNaN(data.current) || data.current < 0)) errors.push('Current amount cannot be negative');
   return errors;
 }
 
@@ -294,8 +325,8 @@ export function validateBusinessTransaction(data) {
   if (!['expense', 'income'].includes(data.type)) errors.push('Invalid transaction type');
   if (data.payment && !['cash', 'card', 'bank', 'mobile'].includes(data.payment)) errors.push('Invalid payment method');
   if (data.description && data.description.length > MAX_DESC_LENGTH) errors.push(`Description must be ${MAX_DESC_LENGTH} characters or less`);
-  if (data.tax != null && (isNaN(data.tax) || data.tax < 0)) errors.push('Tax must be a non-negative number');
-  if (data.taxRate != null && (isNaN(data.taxRate) || data.taxRate < 0 || data.taxRate > 100)) errors.push('Tax rate must be between 0 and 100');
+  if (data.tax !== null && data.tax !== undefined && (isNaN(data.tax) || data.tax < 0)) errors.push('Tax must be a non-negative number');
+  if (data.taxRate !== null && data.taxRate !== undefined && (isNaN(data.taxRate) || data.taxRate < 0 || data.taxRate > 100)) errors.push('Tax rate must be between 0 and 100');
   return errors;
 }
 
@@ -304,7 +335,7 @@ export function validateBusinessCategory(data) {
   if (!data.name || !data.name.trim()) errors.push('Category name is required');
   if (data.name && data.name.length > 50) errors.push('Category name must be 50 characters or less');
   if (!['expense', 'income'].includes(data.type)) errors.push('Invalid category type');
-  if (data.taxRate == null || isNaN(data.taxRate) || data.taxRate < 0 || data.taxRate > 100) errors.push('Tax rate must be between 0 and 100');
+  if (data.taxRate === null || data.taxRate === undefined || isNaN(data.taxRate) || data.taxRate < 0 || data.taxRate > 100) errors.push('Tax rate must be between 0 and 100');
   return errors;
 }
 

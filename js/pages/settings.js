@@ -5,7 +5,7 @@ import { toastSuccess } from '../toast.js';
 import { hasPIN, isLockEnabled, getLockTimeout, setLockTimeout, getPrivacyPolicy } from '../security.js';
 import { changePIN, disableLock, showLockScreen } from '../lockscreen.js';
 
-function applyTheme() {
+export function applyTheme() {
   const settings = getSettings();
   document.documentElement.setAttribute('data-theme', settings.theme);
   const toggle = document.getElementById('themeToggle');
@@ -193,5 +193,3 @@ export function renderSettings(container) {
     }
   });
 }
-
-export { applyTheme };

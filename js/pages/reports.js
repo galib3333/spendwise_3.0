@@ -1,22 +1,12 @@
 // ===== REPORTS PAGE (Weekly, Monthly, Yearly) =====
 import { getTransactions, getSettings } from '../store.js';
-import { fmt, formatDate, getCat, getWeekDates, PAYMENT_LABELS } from '../utils.js';
+import { fmt, formatDate, getCat, getWeekDates, PAYMENT_LABELS, getExpenses as _getExpenses, getIncome as _getIncome, sumByCategory as _sumByCategory, getMonthStart, getMonthEnd } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { drawPieChart, drawBarChart, drawLineChart } from '../charts.js';
 
-function getExpenses(start, end) {
-  return getTransactions().filter(t => t.type === 'expense' && t.date >= start && t.date <= end);
-}
-
-function getIncome(start, end) {
-  return getTransactions().filter(t => t.type === 'income' && t.date >= start && t.date <= end);
-}
-
-function sumByCategory(items) {
-  const map = {};
-  items.forEach(t => { map[t.category] = (map[t.category] || 0) + t.amount; });
-  return Object.entries(map).map(([cat, val]) => ({ category: cat, amount: val })).sort((a, b) => b.amount - a.amount);
-}
+function getExpenses(start, end) { return _getExpenses(getTransactions(), start, end); }
+function getIncome(start, end) { return _getIncome(getTransactions(), start, end); }
+function sumByCategory(items) { return _sumByCategory(items); }
 
 function sumByDay(items) {
   const map = {};
@@ -142,8 +132,8 @@ export function renderMonthly(container) {
   now.setMonth(now.getMonth() + monthlyOffset);
   const year = now.getFullYear();
   const month = now.getMonth();
-  const monthStart = year + '-' + String(month + 1).padStart(2, '0') + '-01';
-  const monthEnd = new Date(year, month + 1, 0).toISOString().slice(0, 10);
+  const monthStart = getMonthStart(monthlyOffset);
+  const monthEnd = getMonthEnd(monthlyOffset);
   const exp = getExpenses(monthStart, monthEnd);
   const inc = getIncome(monthStart, monthEnd);
   const totalExp = exp.reduce((s, t) => s + t.amount, 0);
@@ -155,7 +145,7 @@ export function renderMonthly(container) {
   const dailyData = [];
   const dailyLabels = [];
   for(let i = 1; i <= daysInMonth; i++) {
-    const d = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(i).padStart(2, '0');
+    const d = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
     dailyData.push(exp.filter(t => t.date === d).reduce((s, t) => s + t.amount, 0));
     dailyLabels.push(i.toString());
   }
@@ -278,8 +268,8 @@ export function renderYearly(container) {
   const settings = getSettings();
   const now = new Date();
   const year = now.getFullYear() + yearlyOffset;
-  const yearStart = year + '-01-01';
-  const yearEnd = year + '-12-31';
+  const yearStart = `${year}-01-01`;
+  const yearEnd = `${year}-12-31`;
   const exp = getExpenses(yearStart, yearEnd);
   const inc = getIncome(yearStart, yearEnd);
   const totalExp = exp.reduce((s, t) => s + t.amount, 0);
@@ -291,7 +281,7 @@ export function renderYearly(container) {
   const incByMonth = [];
   const monthLabels = [];
   for(let i = 0; i < 12; i++) {
-    const ms = year + '-' + String(i + 1).padStart(2, '0') + '-01';
+    const ms = `${year}-${String(i + 1).padStart(2, '0')}-01`;
     const me = new Date(year, i + 1, 0).toISOString().slice(0, 10);
     expByMonth.push(getExpenses(ms, me).reduce((s, t) => s + t.amount, 0));
     incByMonth.push(getIncome(ms, me).reduce((s, t) => s + t.amount, 0));

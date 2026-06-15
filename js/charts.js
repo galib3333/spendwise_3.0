@@ -131,7 +131,7 @@ export function drawPieChart(canvasId, data, total, currency) {
       ctx.font = 'bold ' + getFont(14);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(_fmt(total, currency || '৳'), cx, cy - 8);
+      ctx.fillText(_fmt(total, currency || '₹'), cx, cy - 8);
       ctx.font = getFont(11);
       ctx.fillStyle = getThemeColor('--text3');
       ctx.fillText('Total', cx, cy + 10);

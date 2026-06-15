@@ -1,22 +1,12 @@
 // ===== DASHBOARD PAGE =====
 import { getTransactions, getBudgets, getSavingsGoals, getRecurringList, getSettings } from '../store.js';
-import { today, fmt, getCat } from '../utils.js';
+import { today, fmt, getCat, getExpenses as _getExpenses, getIncome as _getIncome, sumByCategory as _sumByCategory, getMonthStart, getMonthEnd } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { drawPieChart, drawBarChart, drawHealthRing } from '../charts.js';
 
-function getExpenses(start, end) {
-  return getTransactions().filter(t => t.type === 'expense' && t.date >= start && t.date <= end);
-}
-
-function getIncome(start, end) {
-  return getTransactions().filter(t => t.type === 'income' && t.date >= start && t.date <= end);
-}
-
-function sumByCategory(items) {
-  const map = {};
-  items.forEach(t => { map[t.category] = (map[t.category] || 0) + t.amount; });
-  return Object.entries(map).map(([cat, val]) => ({ category: cat, amount: val })).sort((a, b) => b.amount - a.amount);
-}
+function getExpenses(start, end) { return _getExpenses(getTransactions(), start, end); }
+function getIncome(start, end) { return _getIncome(getTransactions(), start, end); }
+function sumByCategory(items) { return _sumByCategory(items); }
 
 let dashMonthOffset = 0;
 
@@ -25,8 +15,8 @@ function calcHealthScore(monthStart, monthEnd) {
   const thisMonthExp = getExpenses(monthStart, monthEnd);
 
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1 + dashMonthOffset, 1);
-  const lmStart = lastMonth.toISOString().slice(0, 7) + '-01';
-  const lmEnd = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const lmStart = getMonthStart(-1 + dashMonthOffset);
+  const lmEnd = getMonthEnd(-1 + dashMonthOffset);
   const lastMonthExp = getExpenses(lmStart, lmEnd);
 
   const thisMonthInc = getIncome(monthStart, monthEnd);
@@ -148,8 +138,8 @@ function calcHealthScoreRaw(monthStart, monthEnd, offset) {
 function getInsights(monthStart, monthEnd) {
   const now = new Date();
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1 + dashMonthOffset, 1);
-  const lmStart = lastMonth.toISOString().slice(0, 7) + '-01';
-  const lmEnd = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const lmStart = getMonthStart(-1 + dashMonthOffset);
+  const lmEnd = getMonthEnd(-1 + dashMonthOffset);
 
   const thisMonthExp = getExpenses(monthStart, monthEnd);
   const lastMonthExp = getExpenses(lmStart, lmEnd);
@@ -288,8 +278,8 @@ export function renderDashboard(container) {
   const settings = getSettings();
   const now = new Date();
   const displayDate = new Date(now.getFullYear(), now.getMonth() + dashMonthOffset, 1);
-  const monthStart = displayDate.toISOString().slice(0, 7) + '-01';
-  const monthEnd = new Date(displayDate.getFullYear(), displayDate.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const monthStart = getMonthStart(dashMonthOffset);
+  const monthEnd = getMonthEnd(dashMonthOffset);
   const isCurrentMonth = dashMonthOffset === 0;
   const monthName = displayDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
@@ -490,8 +480,8 @@ export function renderDashboard(container) {
     const labels = [];
     for(let i = 5; i >= 0; i--) {
       const d = new Date(displayDate.getFullYear(), displayDate.getMonth() - i, 1);
-      const ms = d.toISOString().slice(0, 7) + '-01';
-      const me = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+      const ms = getMonthStart(-i);
+      const me = getMonthEnd(-i);
       last6.push(getExpenses(ms, me).reduce((s, x) => s + x.amount, 0));
       labels.push(d.toLocaleDateString('en-US', { month: 'short' }));
     }

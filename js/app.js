@@ -10,6 +10,13 @@ import { initLockScreen, lockApp, resetLockTimer, stopLockTimer } from './locksc
 import { initKeyboardShortcuts } from './shortcuts.js';
 import { shouldShowOnboarding, showOnboarding } from './onboarding.js';
 
+const BLUR_DELAY_MS = 2000;
+const MS_PER_DAY = 86400000;
+const BACKUP_REMINDER_DELAY_MS = 5000;
+const ONBOARDING_DELAY_MS = 1000;
+const LAST_BACKUP_KEY = 'sw_last_backup';
+const BACKUP_REMINDER_DAYS = 7;
+
 // ===== GLOBAL ERROR HANDLER =====
 function setupErrorHandling() {
   window.addEventListener('error', (event) => {
@@ -122,7 +129,7 @@ function setupLifecycleLocks() {
     if(!isLockEnabled() || isLocked()) return;
     _blurTimeout = setTimeout(() => {
       if(!_lockPaused && isLockEnabled() && !isLocked()) lockApp();
-    }, 2000);
+    }, BLUR_DELAY_MS);
   });
   window.addEventListener('focus', () => {
     if(_blurTimeout) { clearTimeout(_blurTimeout); _blurTimeout = null; }
@@ -307,15 +314,13 @@ function setupModeToggle() {
 
 // ===== BACKUP REMINDER =====
 function checkBackupReminder() {
-  const LAST_BACKUP_KEY = 'sw_last_backup';
-  const REMINDER_DAYS = 7;
   const lastBackup = localStorage.getItem(LAST_BACKUP_KEY);
   const now = Date.now();
 
-  if (!lastBackup || (now - parseInt(lastBackup)) > REMINDER_DAYS * 86400000) {
+  if (!lastBackup || (now - parseInt(lastBackup)) > BACKUP_REMINDER_DAYS * MS_PER_DAY) {
     setTimeout(() => {
       toastWarning('Consider backing up your data. Go to Export to download a backup.', {
-        duration: 8000,
+        duration: BACKUP_REMINDER_DELAY_MS,
         action: () => {
           navigate('export');
           localStorage.setItem(LAST_BACKUP_KEY, String(now));
@@ -327,7 +332,7 @@ function checkBackupReminder() {
 }
 
 export function markBackupDone() {
-  localStorage.setItem('sw_last_backup', String(Date.now()));
+  localStorage.setItem(LAST_BACKUP_KEY, String(Date.now()));
 }
 
 // ===== MIGRATION: Sync orphaned recurring transactions =====
@@ -430,7 +435,7 @@ async function init() {
 
     // Show onboarding for first-time users
     if (shouldShowOnboarding()) {
-      setTimeout(() => showOnboarding(), 1000);
+      setTimeout(() => showOnboarding(), ONBOARDING_DELAY_MS);
     }
   });
 }
