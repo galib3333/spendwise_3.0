@@ -3,7 +3,7 @@ import { getTransactions, getSettings } from '../store.js';
 import { fmt, formatDate, getCat, getWeekDates, PAYMENT_LABELS, getExpenses as _getExpenses, getIncome as _getIncome, sumByCategory as _sumByCategory, getMonthStart, getMonthEnd } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { drawPieChart, drawBarChart, drawLineChart } from '../charts.js';
-import { renderCard, renderCatOptions, ICONS } from '../helpers.js';
+import { renderCard } from '../helpers.js';
 
 function getExpenses(start, end) { return _getExpenses(getTransactions(), start, end); }
 function getIncome(start, end) { return _getIncome(getTransactions(), start, end); }
@@ -52,11 +52,11 @@ export function renderWeekly(container) {
         <div class="header-actions">
           <div class="period-nav">
             <button class="btn btn-ghost btn-sm btn-icon" id="weekPrev" aria-label="Previous week">
-              ${ICONS.chevronLeft}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
             <span class="period-label">${periodLabel}</span>
             <button class="btn btn-ghost btn-sm btn-icon" id="weekNext" aria-label="Next week" ${weeklyOffset >= 0 ? 'disabled' : ''}>
-              ${ICONS.chevronRight}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
             ${weeklyOffset !== 0 ? '<button class="btn btn-ghost btn-sm" id="weekToday">Today</button>' : ''}
           </div>
@@ -166,11 +166,11 @@ export function renderMonthly(container) {
         <div class="header-actions">
           <div class="period-nav">
             <button class="btn btn-ghost btn-sm btn-icon" id="monthPrev" aria-label="Previous month">
-              ${ICONS.chevronLeft}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
             <span class="period-label">${isCurrentMonth ? 'This Month' : monthName}</span>
             <button class="btn btn-ghost btn-sm btn-icon" id="monthNext" aria-label="Next month" ${isCurrentMonth ? 'disabled' : ''}>
-              ${ICONS.chevronRight}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
             ${!isCurrentMonth ? '<button class="btn btn-ghost btn-sm" id="monthToday">Today</button>' : ''}
           </div>
@@ -299,11 +299,11 @@ export function renderYearly(container) {
         <div class="header-actions">
           <div class="period-nav">
             <button class="btn btn-ghost btn-sm btn-icon" id="yearPrev" aria-label="Previous year">
-              ${ICONS.chevronLeft}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
             <span class="period-label">${year}</span>
             <button class="btn btn-ghost btn-sm btn-icon" id="yearNext" aria-label="Next year" ${isCurrentYear ? 'disabled' : ''}>
-              ${ICONS.chevronRight}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
             ${!isCurrentYear ? '<button class="btn btn-ghost btn-sm" id="yearToday">Today</button>' : ''}
           </div>

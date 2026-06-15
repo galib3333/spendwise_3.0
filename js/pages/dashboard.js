@@ -3,7 +3,7 @@ import { getTransactions, getBudgets, getSavingsGoals, getRecurringList, getSett
 import { today, fmt, getCat, getExpenses as _getExpenses, getIncome as _getIncome, sumByCategory as _sumByCategory, getMonthStart, getMonthEnd } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { drawPieChart, drawBarChart, drawHealthRing } from '../charts.js';
-import { renderCard, ICONS } from '../helpers.js';
+import { renderCard } from '../helpers.js';
 
 function getExpenses(start, end) { return _getExpenses(getTransactions(), start, end); }
 function getIncome(start, end) { return _getIncome(getTransactions(), start, end); }
@@ -308,11 +308,11 @@ export function renderDashboard(container) {
         <div class="header-actions">
           <div class="period-nav">
             <button class="btn btn-ghost btn-sm btn-icon" id="dashPrev" aria-label="Previous month">
-              ${ICONS.chevronLeft}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
             <span class="period-label">${isCurrentMonth ? 'This Month' : monthName}</span>
             <button class="btn btn-ghost btn-sm btn-icon" id="dashNext" aria-label="Next month" ${isCurrentMonth ? 'disabled' : ''}>
-              ${ICONS.chevronRight}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
             ${!isCurrentMonth ? '<button class="btn btn-ghost btn-sm" id="dashToday">Today</button>' : ''}
           </div>
@@ -390,7 +390,7 @@ export function renderDashboard(container) {
       ${insights.length ? `
         <div class="insights-panel" role="region" aria-label="Spending insights">
           <div class="insights-header">
-            ${ICONS.info}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
             Insights
           </div>
           ${insights.map(i => `

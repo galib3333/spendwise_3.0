@@ -4,7 +4,7 @@ import { today, fmt, formatDate, getCat, ALL_CATS, EXPENSE_CATS, INCOME_CATS, PA
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastInfo, toastError } from '../toast.js';
 import { openModal, closeModal } from '../modals.js';
-import { renderCard, renderEmptyState, renderCatOptions, ICONS } from '../helpers.js';
+import { renderCard, renderEmptyState, renderCatOptions } from '../helpers.js';
 
 let currentFilter = { search: '', type: 'all', category: 'all', payment: 'all', dateFrom: '', dateTo: '', sort: 'date-desc' };
 let currentPage = 1;
@@ -85,10 +85,10 @@ function renderTable() {
         <td>
           <div class="flex gap-8" style="justify-content:flex-end">
             <button class="btn btn-ghost btn-sm btn-icon" data-action="edit" data-id="${escapeHTML(t.id)}" title="Edit" aria-label="Edit transaction">
-              ${ICONS.edit}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
             <button class="btn btn-ghost btn-sm btn-icon" data-action="delete" data-id="${escapeHTML(t.id)}" title="Delete" aria-label="Delete transaction">
-              ${ICONS.delete}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
             </button>
           </div>
         </td>
@@ -246,7 +246,7 @@ export function renderTransactions(container) {
         <h2>Transactions</h2>
         <div class="header-actions">
           <div class="search-box">
-            ${ICONS.search}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input type="text" class="input" id="searchInput" placeholder="Search transactions..." aria-label="Search transactions" style="width:220px">
           </div>
           <select class="input" id="filterType" aria-label="Filter by type" style="width:130px">
@@ -262,11 +262,11 @@ export function renderTransactions(container) {
             <option value="category">Category</option>
           </select>
           <button class="btn btn-ghost btn-sm" id="toggleFiltersBtn" aria-label="Toggle advanced filters">
-            ${ICONS.filter}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
             Filters
           </button>
           <button class="btn btn-primary" id="addTransactionBtn" aria-label="Add transaction">
-            ${ICONS.plus}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add
           </button>
         </div>
