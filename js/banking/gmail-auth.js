@@ -30,7 +30,7 @@ export function getAccessToken() {
 export function initGmailAuth(clientId) {
   return new Promise((resolve) => {
     if (!window.google || !window.google.accounts) {
-      console.warn('Google Identity Services not loaded');
+      console.warn('[SpendWise] Google Identity Services not loaded. Check if the script tag is in index.html.');
       resolve(false);
       return;
     }
@@ -39,6 +39,7 @@ export function initGmailAuth(clientId) {
       client_id: clientId,
       scope: GMAIL_SCOPE,
       callback: (tokenResponse) => {
+        console.log('[SpendWise] Gmail OAuth callback fired:', tokenResponse.error || 'success');
         if (tokenResponse.error) {
           console.error('Gmail auth error:', tokenResponse.error);
           notifyChange(false);
@@ -55,7 +56,7 @@ export function initGmailAuth(clientId) {
         notifyChange(true);
       },
       error_callback: (err) => {
-        console.error('Gmail auth error:', err);
+        console.error('[SpendWise] Gmail auth error_callback:', err);
         notifyChange(false);
       },
     });
@@ -69,6 +70,7 @@ export function requestGmailAccess() {
     console.error('Gmail auth not initialized. Call initGmailAuth first.');
     return false;
   }
+  console.log('[SpendWise] Requesting Gmail access...');
   _tokenClient.requestAccessToken({ prompt: 'consent' });
   return true;
 }

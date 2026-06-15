@@ -278,6 +278,21 @@ function bindEvents(container, accounts, settings) {
       toastWarning('Please set your Gmail Client ID in Settings first.');
       return;
     }
+    // Listen for connection change — re-render page when OAuth completes
+    onConnectionChange((connected) => {
+      if (connected) {
+        toastSuccess('Gmail connected successfully!');
+        renderBanking(container);
+      }
+    });
+    // Fallback: re-render on window focus (popup closes → user returns)
+    const onFocus = () => {
+      window.removeEventListener('focus', onFocus);
+      if (isGmailConnected()) {
+        renderBanking(container);
+      }
+    };
+    window.addEventListener('focus', onFocus);
     const ready = await initGmailAuth(clientId);
     if (ready) requestGmailAccess();
   });
