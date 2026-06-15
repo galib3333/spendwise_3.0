@@ -7,15 +7,17 @@ import {
 import { uid, fmt } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastError, toastWarning } from '../toast.js';
+import { navigate } from '../router.js';
 import { isGmailConnected, initGmailAuth, requestGmailAccess, disconnectGmail, renderGmailStatus, onConnectionChange } from '../banking/gmail-auth.js';
-import { fetchAndParseEmails, fetchLatestBalance, getSupportedProviders } from '../banking/gmail-fetcher.js';
-import { getAllAdapters, parseEmailAuto, detectProvider } from '../banking/email-parser.js';
-import { reconcileBalance, formatBalance } from '../banking/balance-tracker.js';
+import { fetchAndParseEmails, fetchLatestBalance } from '../banking/gmail-fetcher.js';
+import { detectProvider, parseEmailAuto } from '../banking/email-parser.js';
+import { formatBalance } from '../banking/balance-tracker.js';
 import '../banking/bkb-adapter.js';
 import '../banking/ebl-adapter.js';
 
 const ACCOUNT_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4'];
-const GMAIL_CLIENT_ID = ''; // User must set this in settings
+
+let _unsubscribeConnection = null;
 
 const PROVIDER_INFO = {
   bkash: { name: 'bKash', icon: '📱', color: '#e2136e' },
@@ -278,8 +280,10 @@ function bindEvents(container, accounts, settings) {
       toastWarning('Please set your Gmail Client ID in Settings first.');
       return;
     }
+    // Unsubscribe previous listener to prevent stacking
+    if (_unsubscribeConnection) _unsubscribeConnection();
     // Listen for connection change — re-render page when OAuth completes
-    onConnectionChange((connected) => {
+    _unsubscribeConnection = onConnectionChange((connected) => {
       if (connected) {
         toastSuccess('Gmail connected successfully!');
         renderBanking(container);

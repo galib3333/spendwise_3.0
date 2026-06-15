@@ -2,6 +2,11 @@
 export function openModal(id) {
   const modal = document.getElementById(id);
   if(!modal) return;
+  // Clean up any existing escape handler first
+  if(modal._escapeHandler) {
+    document.removeEventListener('keydown', modal._escapeHandler);
+    modal._escapeHandler = null;
+  }
   modal.classList.add('show');
 
   // Focus trap
@@ -12,7 +17,6 @@ export function openModal(id) {
   const handler = (e) => {
     if(e.key === 'Escape') {
       closeModal(id);
-      document.removeEventListener('keydown', handler);
     }
   };
   document.addEventListener('keydown', handler);

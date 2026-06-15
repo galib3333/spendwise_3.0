@@ -3,6 +3,7 @@ import { getTransactions, getSettings } from '../store.js';
 import { fmt, formatDate, getCat, getWeekDates, PAYMENT_LABELS, getExpenses as _getExpenses, getIncome as _getIncome, sumByCategory as _sumByCategory, getMonthStart, getMonthEnd } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { drawPieChart, drawBarChart, drawLineChart } from '../charts.js';
+import { renderCard, renderCatOptions, ICONS } from '../helpers.js';
 
 function getExpenses(start, end) { return _getExpenses(getTransactions(), start, end); }
 function getIncome(start, end) { return _getIncome(getTransactions(), start, end); }
@@ -51,21 +52,21 @@ export function renderWeekly(container) {
         <div class="header-actions">
           <div class="period-nav">
             <button class="btn btn-ghost btn-sm btn-icon" id="weekPrev" aria-label="Previous week">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              ${ICONS.chevronLeft}
             </button>
             <span class="period-label">${periodLabel}</span>
             <button class="btn btn-ghost btn-sm btn-icon" id="weekNext" aria-label="Next week" ${weeklyOffset >= 0 ? 'disabled' : ''}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              ${ICONS.chevronRight}
             </button>
             ${weeklyOffset !== 0 ? '<button class="btn btn-ghost btn-sm" id="weekToday">Today</button>' : ''}
           </div>
         </div>
       </div>
       <div class="cards-grid">
-        <div class="card"><div class="card-label">💸 Total Spent</div><div class="card-value red">${fmt(totalExp, settings.currency)}</div></div>
-        <div class="card"><div class="card-label">💰 Income</div><div class="card-value green">${fmt(totalInc, settings.currency)}</div></div>
-        <div class="card"><div class="card-label">📊 Transactions</div><div class="card-value accent">${exp.length + inc.length}</div></div>
-        <div class="card"><div class="card-label">📈 Avg/Day</div><div class="card-value yellow">${fmt(totalExp / 7, settings.currency)}</div></div>
+        ${renderCard('💸 Total Spent', fmt(totalExp, settings.currency), 'red')}
+        ${renderCard('💰 Income', fmt(totalInc, settings.currency), 'green')}
+        ${renderCard('📊 Transactions', exp.length + inc.length, 'accent')}
+        ${renderCard('📈 Avg/Day', fmt(totalExp / 7, settings.currency), 'yellow')}
       </div>
       <div class="grid-2">
         <div class="panel">
@@ -165,21 +166,21 @@ export function renderMonthly(container) {
         <div class="header-actions">
           <div class="period-nav">
             <button class="btn btn-ghost btn-sm btn-icon" id="monthPrev" aria-label="Previous month">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              ${ICONS.chevronLeft}
             </button>
             <span class="period-label">${isCurrentMonth ? 'This Month' : monthName}</span>
             <button class="btn btn-ghost btn-sm btn-icon" id="monthNext" aria-label="Next month" ${isCurrentMonth ? 'disabled' : ''}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              ${ICONS.chevronRight}
             </button>
             ${!isCurrentMonth ? '<button class="btn btn-ghost btn-sm" id="monthToday">Today</button>' : ''}
           </div>
         </div>
       </div>
       <div class="cards-grid">
-        <div class="card"><div class="card-label">💸 Total Expenses</div><div class="card-value red">${fmt(totalExp, settings.currency)}</div></div>
-        <div class="card"><div class="card-label">💰 Total Income</div><div class="card-value green">${fmt(totalInc, settings.currency)}</div></div>
-        <div class="card"><div class="card-label">🏦 Net Balance</div><div class="card-value ${totalInc - totalExp >= 0 ? 'green' : 'red'}">${fmt(totalInc - totalExp, settings.currency)}</div></div>
-        <div class="card"><div class="card-label">📅 Avg Daily</div><div class="card-value accent">${fmt(avgPerDay, settings.currency)}</div></div>
+        ${renderCard('💸 Total Expenses', fmt(totalExp, settings.currency), 'red')}
+        ${renderCard('💰 Total Income', fmt(totalInc, settings.currency), 'green')}
+        ${renderCard('🏦 Net Balance', fmt(totalInc - totalExp, settings.currency), totalInc - totalExp >= 0 ? 'green' : 'red')}
+        ${renderCard('📅 Avg Daily', fmt(avgPerDay, settings.currency), 'accent')}
       </div>
       <div class="grid-2">
         <div class="panel">
@@ -282,7 +283,8 @@ export function renderYearly(container) {
   const monthLabels = [];
   for(let i = 0; i < 12; i++) {
     const ms = `${year}-${String(i + 1).padStart(2, '0')}-01`;
-    const me = new Date(year, i + 1, 0).toISOString().slice(0, 10);
+    const meD = new Date(year, i + 1, 0);
+    const me = `${meD.getFullYear()}-${String(meD.getMonth()+1).padStart(2,'0')}-${String(meD.getDate()).padStart(2,'0')}`;
     expByMonth.push(getExpenses(ms, me).reduce((s, t) => s + t.amount, 0));
     incByMonth.push(getIncome(ms, me).reduce((s, t) => s + t.amount, 0));
     monthLabels.push(monthNames[i]);
@@ -297,21 +299,21 @@ export function renderYearly(container) {
         <div class="header-actions">
           <div class="period-nav">
             <button class="btn btn-ghost btn-sm btn-icon" id="yearPrev" aria-label="Previous year">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              ${ICONS.chevronLeft}
             </button>
             <span class="period-label">${year}</span>
             <button class="btn btn-ghost btn-sm btn-icon" id="yearNext" aria-label="Next year" ${isCurrentYear ? 'disabled' : ''}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              ${ICONS.chevronRight}
             </button>
             ${!isCurrentYear ? '<button class="btn btn-ghost btn-sm" id="yearToday">Today</button>' : ''}
           </div>
         </div>
       </div>
       <div class="cards-grid">
-        <div class="card"><div class="card-label">💸 Total Expenses</div><div class="card-value red">${fmt(totalExp, settings.currency)}</div></div>
-        <div class="card"><div class="card-label">💰 Total Income</div><div class="card-value green">${fmt(totalInc, settings.currency)}</div></div>
-        <div class="card"><div class="card-label">🏦 Net Savings</div><div class="card-value ${totalInc - totalExp >= 0 ? 'green' : 'red'}">${fmt(totalInc - totalExp, settings.currency)}</div></div>
-        <div class="card"><div class="card-label">📊 Savings Rate</div><div class="card-value accent">${totalInc ? ((totalInc - totalExp) / totalInc * 100).toFixed(1) : 0}%</div></div>
+        ${renderCard('💸 Total Expenses', fmt(totalExp, settings.currency), 'red')}
+        ${renderCard('💰 Total Income', fmt(totalInc, settings.currency), 'green')}
+        ${renderCard('🏦 Net Savings', fmt(totalInc - totalExp, settings.currency), totalInc - totalExp >= 0 ? 'green' : 'red')}
+        ${renderCard('📊 Savings Rate', totalInc ? ((totalInc - totalExp) / totalInc * 100).toFixed(1) + '%' : '0%', 'accent')}
       </div>
       <div class="panel mb-20">
         <div class="panel-header"><h3>Monthly Comparison</h3></div>

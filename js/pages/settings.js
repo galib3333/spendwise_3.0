@@ -4,7 +4,7 @@ import { escapeHTML } from '../sanitize.js';
 import { toastSuccess } from '../toast.js';
 import { hasPIN, isLockEnabled, getLockTimeout, setLockTimeout, getPrivacyPolicy } from '../security.js';
 import { changePIN, disableLock, showLockScreen } from '../lockscreen.js';
-import { isGmailConnected, renderGmailStatus } from '../banking/gmail-auth.js';
+import { renderGmailStatus } from '../banking/gmail-auth.js';
 
 export function applyTheme() {
   const settings = getSettings();

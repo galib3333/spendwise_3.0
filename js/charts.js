@@ -79,8 +79,7 @@ export function drawPieChart(canvasId, data, total, currency) {
   const { ctx, w, h } = s;
 
   if(!data.length) { drawNoData(ctx, w, h); return; }
-
-  const cx = w / 2, cy = h / 2, r = Math.min(cx, cy) - 24;
+  if(total === 0) { drawNoData(ctx, w, h); return; }
   const duration = 1600;
 
   function drawSlice(progress) {
@@ -149,7 +148,7 @@ export function drawBarChart(canvasId, data, labels, color, currency) {
 
   if(!data.length) { drawNoData(ctx, w, h); return; }
 
-  const maxVal = Math.max(...data, 1);
+  const maxVal = Math.max(data.reduce((a, b) => Math.max(a, b), 0), 1);
   const barW = Math.min(40, (w - 60) / data.length - 8);
   const chartH = h - 50;
   const startX = 40;
@@ -208,7 +207,7 @@ export function drawLineChart(canvasId, data, labels, color) {
 
   if(data.length < 2) { drawNoData(ctx, w, h, 'Need more data'); return; }
 
-  const maxVal = Math.max(...data, 1);
+  const maxVal = Math.max(data.reduce((a, b) => Math.max(a, b), 0), 1);
   const chartH = h - 50;
   const startX = 40;
   const stepX = (w - 60) / (data.length - 1);

@@ -74,12 +74,12 @@ export async function initStore() {
     state.bankTransactions = bankTxns || [];
 
     // Load settings
-    const settingsKeys = ['currency', 'theme', 'dateFormat', 'appMode'];
+    const settingsKeys = ['currency', 'theme', 'dateFormat'];
     for (const key of settingsKeys) {
       const val = await dbGetSetting(key);
       if (val !== undefined) state.settings[key] = val;
     }
-    // Load appMode from settings or default
+    // Load appMode
     const savedMode = await dbGetSetting('appMode');
     if (savedMode) state.appMode = savedMode;
   } else {
@@ -178,116 +178,52 @@ export function getBusinessCategories() { return [...state.businessCategories]; 
 export function getBankAccounts() { return [...state.bankAccounts]; }
 export function getBankTransactions() { return [...state.bankTransactions]; }
 
+// ===== GENERIC CRUD HELPERS =====
+function crudOps(key, stateKey) {
+  return {
+    add(data) { state[stateKey].push(data); persistSync(); notify(stateKey); },
+    update(id, data) {
+      const idx = state[stateKey].findIndex(x => x.id === id);
+      if (idx >= 0) { state[stateKey][idx] = { ...state[stateKey][idx], ...data }; persistSync(); notify(stateKey); return true; }
+      return false;
+    },
+    remove(id) {
+      const idx = state[stateKey].findIndex(x => x.id === id);
+      if (idx >= 0) { const removed = state[stateKey].splice(idx, 1)[0]; persistSync(); notify(stateKey); return removed; }
+      return null;
+    }
+  };
+}
+
+const transactions = crudOps('transactions', 'transactions');
+const budgets = crudOps('budgets', 'budgets');
+const savingsGoals = crudOps('savingsGoals', 'savingsGoals');
+const recurringList = crudOps('recurringList', 'recurringList');
+const businessTxns = crudOps('businessTransactions', 'businessTransactions');
+const businessCats = crudOps('businessCategories', 'businessCategories');
+const bankAccounts = crudOps('bankAccounts', 'bankAccounts');
+const bankTransactions = crudOps('bankTransactions', 'bankTransactions');
+
 // ===== TRANSACTIONS =====
-export function addTransaction(data) {
-  state.transactions.push(data);
-  persistSync(); notify('transactions');
-}
-
-export function updateTransaction(id, data) {
-  const idx = state.transactions.findIndex(t => t.id === id);
-  if (idx >= 0) {
-    state.transactions[idx] = { ...state.transactions[idx], ...data };
-    persistSync(); notify('transactions');
-    return true;
-  }
-  return false;
-}
-
-export function deleteTransaction(id) {
-  const idx = state.transactions.findIndex(t => t.id === id);
-  if (idx >= 0) {
-    const removed = state.transactions.splice(idx, 1)[0];
-    persistSync(); notify('transactions');
-    return removed;
-  }
-  return null;
-}
-
-export function restoreTransaction(item) {
-  if (item && item.id) {
-    state.transactions.push(item);
-    persistSync(); notify('transactions');
-  }
-}
+export function addTransaction(data) { transactions.add(data); }
+export function updateTransaction(id, data) { return transactions.update(id, data); }
+export function deleteTransaction(id) { return transactions.remove(id); }
+export function restoreTransaction(item) { if (item && item.id) transactions.add(item); }
 
 // ===== BUDGETS =====
-export function addBudget(data) {
-  state.budgets.push(data);
-  persistSync(); notify('budgets');
-}
-
-export function updateBudget(id, data) {
-  const idx = state.budgets.findIndex(b => b.id === id);
-  if (idx >= 0) {
-    state.budgets[idx] = { ...state.budgets[idx], ...data };
-    persistSync(); notify('budgets');
-    return true;
-  }
-  return false;
-}
-
-export function deleteBudget(id) {
-  const idx = state.budgets.findIndex(b => b.id === id);
-  if (idx >= 0) {
-    const removed = state.budgets.splice(idx, 1)[0];
-    persistSync(); notify('budgets');
-    return removed;
-  }
-  return null;
-}
+export function addBudget(data) { budgets.add(data); }
+export function updateBudget(id, data) { return budgets.update(id, data); }
+export function deleteBudget(id) { return budgets.remove(id); }
 
 // ===== SAVINGS GOALS =====
-export function addGoal(data) {
-  state.savingsGoals.push(data);
-  persistSync(); notify('savingsGoals');
-}
-
-export function updateGoal(id, data) {
-  const idx = state.savingsGoals.findIndex(g => g.id === id);
-  if (idx >= 0) {
-    state.savingsGoals[idx] = { ...state.savingsGoals[idx], ...data };
-    persistSync(); notify('savingsGoals');
-    return true;
-  }
-  return false;
-}
-
-export function deleteGoal(id) {
-  const idx = state.savingsGoals.findIndex(g => g.id === id);
-  if (idx >= 0) {
-    const removed = state.savingsGoals.splice(idx, 1)[0];
-    persistSync(); notify('savingsGoals');
-    return removed;
-  }
-  return null;
-}
+export function addGoal(data) { savingsGoals.add(data); }
+export function updateGoal(id, data) { return savingsGoals.update(id, data); }
+export function deleteGoal(id) { return savingsGoals.remove(id); }
 
 // ===== RECURRING =====
-export function addRecurring(data) {
-  state.recurringList.push(data);
-  persistSync(); notify('recurringList');
-}
-
-export function updateRecurring(id, data) {
-  const idx = state.recurringList.findIndex(r => r.id === id);
-  if (idx >= 0) {
-    state.recurringList[idx] = { ...state.recurringList[idx], ...data };
-    persistSync(); notify('recurringList');
-    return true;
-  }
-  return false;
-}
-
-export function deleteRecurring(id) {
-  const idx = state.recurringList.findIndex(r => r.id === id);
-  if (idx >= 0) {
-    const removed = state.recurringList.splice(idx, 1)[0];
-    persistSync(); notify('recurringList');
-    return removed;
-  }
-  return null;
-}
+export function addRecurring(data) { recurringList.add(data); }
+export function updateRecurring(id, data) { return recurringList.update(id, data); }
+export function deleteRecurring(id) { return recurringList.remove(id); }
 
 export function toggleRecurringActive(id) {
   const r = state.recurringList.find(x => x.id === id);
@@ -318,104 +254,34 @@ export function clearBusinessProfile() {
 }
 
 // ===== BUSINESS TRANSACTIONS =====
-export function addBusinessTransaction(data) {
-  state.businessTransactions.push(data);
-  persistSync(); notify('businessTransactions');
-}
-
-export function updateBusinessTransaction(id, data) {
-  const idx = state.businessTransactions.findIndex(t => t.id === id);
-  if (idx >= 0) {
-    state.businessTransactions[idx] = { ...state.businessTransactions[idx], ...data };
-    persistSync(); notify('businessTransactions');
-    return true;
-  }
-  return false;
-}
-
-export function deleteBusinessTransaction(id) {
-  const idx = state.businessTransactions.findIndex(t => t.id === id);
-  if (idx >= 0) {
-    const removed = state.businessTransactions.splice(idx, 1)[0];
-    persistSync(); notify('businessTransactions');
-    return removed;
-  }
-  return null;
-}
+export function addBusinessTransaction(data) { businessTxns.add(data); }
+export function updateBusinessTransaction(id, data) { return businessTxns.update(id, data); }
+export function deleteBusinessTransaction(id) { return businessTxns.remove(id); }
 
 // ===== BUSINESS CATEGORIES =====
-export function addBusinessCategory(data) {
-  state.businessCategories.push(data);
-  persistSync(); notify('businessCategories');
-}
-
-export function updateBusinessCategory(id, data) {
-  const idx = state.businessCategories.findIndex(c => c.id === id);
-  if (idx >= 0) {
-    state.businessCategories[idx] = { ...state.businessCategories[idx], ...data };
-    persistSync(); notify('businessCategories');
-    return true;
-  }
-  return false;
-}
-
-export function deleteBusinessCategory(id) {
-  const idx = state.businessCategories.findIndex(c => c.id === id);
-  if (idx >= 0) {
-    const removed = state.businessCategories.splice(idx, 1)[0];
-    persistSync(); notify('businessCategories');
-    return removed;
-  }
-  return null;
-}
+export function addBusinessCategory(data) { businessCats.add(data); }
+export function updateBusinessCategory(id, data) { return businessCats.update(id, data); }
+export function deleteBusinessCategory(id) { return businessCats.remove(id); }
 
 // ===== BANK ACCOUNTS =====
-export function addBankAccount(data) {
-  state.bankAccounts.push(data);
-  persistSync(); notify('bankAccounts');
-}
-
-export function updateBankAccount(id, data) {
-  const idx = state.bankAccounts.findIndex(a => a.id === id);
-  if (idx >= 0) {
-    state.bankAccounts[idx] = { ...state.bankAccounts[idx], ...data };
-    persistSync(); notify('bankAccounts');
-    return true;
-  }
-  return false;
-}
-
+export function addBankAccount(data) { bankAccounts.add(data); }
+export function updateBankAccount(id, data) { return bankAccounts.update(id, data); }
 export function deleteBankAccount(id) {
-  const idx = state.bankAccounts.findIndex(a => a.id === id);
-  if (idx >= 0) {
-    const removed = state.bankAccounts.splice(idx, 1)[0];
+  const removed = bankAccounts.remove(id);
+  if (removed) {
     state.bankTransactions = state.bankTransactions.filter(t => t.bankAccountId !== id);
-    persistSync(); notify('bankAccounts'); notify('bankTransactions');
-    return removed;
+    persistSync(); notify('bankTransactions');
   }
-  return null;
+  return removed;
 }
 
 // ===== BANK TRANSACTIONS =====
-export function addBankTransaction(data) {
-  state.bankTransactions.push(data);
-  persistSync(); notify('bankTransactions');
-}
-
+export function addBankTransaction(data) { bankTransactions.add(data); }
 export function addBulkBankTransactions(items) {
   state.bankTransactions.push(...items);
   persistSync(); notify('bankTransactions');
 }
-
-export function deleteBankTransaction(id) {
-  const idx = state.bankTransactions.findIndex(t => t.id === id);
-  if (idx >= 0) {
-    const removed = state.bankTransactions.splice(idx, 1)[0];
-    persistSync(); notify('bankTransactions');
-    return removed;
-  }
-  return null;
-}
+export function deleteBankTransaction(id) { return bankTransactions.remove(id); }
 
 export function getBankTransactionsForAccount(accountId) {
   return state.bankTransactions.filter(t => t.bankAccountId === accountId);
@@ -461,7 +327,6 @@ export function clearAllData() {
   localStorage.removeItem('sw_lock_attempts');
   localStorage.removeItem('sw_lock_timeout');
   // Clear Gmail data
-  localStorage.removeItem('sw_gmail_refresh');
   localStorage.removeItem('sw_gmail_connected');
   // Clear IndexedDB if available
   if (_storageMode === 'indexeddb') {

@@ -1,5 +1,6 @@
 // ===== bKash EMAIL ADAPTER =====
 import { registerAdapter } from './email-parser.js';
+import { today, toDateStr } from '../utils.js';
 
 const PROVIDER_ID = 'bkash';
 const PROVIDER_NAME = 'bKash';
@@ -69,11 +70,11 @@ function parseType(text) {
 }
 
 function formatDate(dateStr) {
-  if (!dateStr) return new Date().toISOString().slice(0, 10);
+  if (!dateStr) return today();
   // bKash emails: "15 June 2026, 3:45 PM" or "2026-06-15"
   const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return new Date().toISOString().slice(0, 10);
-  return d.toISOString().slice(0, 10);
+  if (isNaN(d.getTime())) return today();
+  return toDateStr(d);
 }
 
 function parse(subject, body, date) {

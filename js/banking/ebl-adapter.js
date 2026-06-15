@@ -1,5 +1,6 @@
 // ===== EBL (Eastern Bank Limited) EMAIL ADAPTER =====
 import { registerAdapter } from './email-parser.js';
+import { today, toDateStr } from '../utils.js';
 
 const PROVIDER_ID = 'ebl';
 const PROVIDER_NAME = 'EBL';
@@ -73,7 +74,7 @@ function parseType(text) {
 }
 
 function formatDate(dateStr) {
-  if (!dateStr) return new Date().toISOString().slice(0, 10);
+  if (!dateStr) return today();
 
   // Handle ISO format YYYY-MM-DD directly
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
@@ -88,9 +89,9 @@ function formatDate(dateStr) {
 
   // Try "15 June 2026"
   const d = new Date(dateStr);
-  if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  if (!isNaN(d.getTime())) return toDateStr(d);
 
-  return new Date().toISOString().slice(0, 10);
+  return today();
 }
 
 function parse(subject, body, date) {

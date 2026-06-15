@@ -4,6 +4,7 @@ import { fmt, getCat, EXPENSE_CATS, validateBudget, uid, getMonthStart, getMonth
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastInfo, toastError } from '../toast.js';
 import { openModal, closeModal } from '../modals.js';
+import { renderCard, renderCatOptions, ICONS } from '../helpers.js';
 
 function getMonthExpenses() {
   const monthStart = getMonthStart();
@@ -15,7 +16,7 @@ function openAddBudget() {
   document.getElementById('budgetEditId').value = '';
   document.getElementById('budgetAmount').value = '';
   const sel = document.getElementById('budgetCategory');
-  sel.innerHTML = EXPENSE_CATS.map(c => `<option value="${c.id}">${c.icon} ${escapeHTML(c.name)}</option>`).join('');
+  sel.innerHTML = renderCatOptions(EXPENSE_CATS);
   const used = getBudgets().map(b => b.category);
   Array.from(sel.options).forEach(o => { if(used.includes(o.value)) o.disabled = true; });
   openModal('budgetModal');
@@ -26,8 +27,7 @@ function openEditBudget(id) {
   if(!b) return;
   document.getElementById('budgetEditId').value = b.id;
   const sel = document.getElementById('budgetCategory');
-  sel.innerHTML = EXPENSE_CATS.map(c => `<option value="${c.id}">${c.icon} ${escapeHTML(c.name)}</option>`).join('');
-  sel.value = b.category;
+  sel.innerHTML = renderCatOptions(EXPENSE_CATS, b.category);
   document.getElementById('budgetAmount').value = b.limit;
   openModal('budgetModal');
 }
@@ -83,14 +83,14 @@ export function renderBudgets(container) {
       <div class="header">
         <h2>Budgets — ${now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h2>
         <button class="btn btn-primary" id="addBudgetBtn" aria-label="Set budget">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          ${ICONS.plus}
           Set Budget
         </button>
       </div>
       <div class="cards-grid">
-        <div class="card"><div class="card-label">💰 Total Budget</div><div class="card-value accent">${fmt(totalBudget, settings.currency)}</div></div>
-        <div class="card"><div class="card-label">💸 Total Spent</div><div class="card-value red">${fmt(totalSpent, settings.currency)}</div></div>
-        <div class="card"><div class="card-label">📊 Remaining</div><div class="card-value ${totalBudget - totalSpent >= 0 ? 'green' : 'red'}">${fmt(totalBudget - totalSpent, settings.currency)}</div></div>
+        ${renderCard('💰 Total Budget', fmt(totalBudget, settings.currency), 'accent')}
+        ${renderCard('💸 Total Spent', fmt(totalSpent, settings.currency), 'red')}
+        ${renderCard('📊 Remaining', fmt(totalBudget - totalSpent, settings.currency), totalBudget - totalSpent >= 0 ? 'green' : 'red')}
       </div>
       <div class="panel" id="budgetsList">
         ${budgets.length ? budgets.map(b => {
@@ -110,10 +110,10 @@ export function renderBudgets(container) {
               </div>
               <span class="badge ${over ? 'badge-danger' : pct > 80 ? 'badge-warning' : 'badge-success'}">${over ? 'Over' : pct > 80 ? 'Warning' : 'On Track'}</span>
               <button class="btn btn-ghost btn-sm btn-icon" data-action="edit" data-id="${escapeHTML(b.id)}" title="Edit budget" aria-label="Edit budget for ${escapeHTML(cat.name)}">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                ${ICONS.edit}
               </button>
               <button class="btn btn-ghost btn-sm btn-icon" data-action="delete" data-id="${escapeHTML(b.id)}" title="Delete budget" aria-label="Delete budget for ${escapeHTML(cat.name)}">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                ${ICONS.delete}
               </button>
             </div>
           `;

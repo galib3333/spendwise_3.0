@@ -14,8 +14,13 @@ export function navigate(page) {
   currentPage = page;
 
   document.querySelectorAll('.nav-item').forEach(n => {
-    n.classList.toggle('active', n.dataset.page === page);
-    n.setAttribute('aria-current', n.dataset.page === page ? 'page' : 'false');
+    const isActive = n.dataset.page === page;
+    n.classList.toggle('active', isActive);
+    if (isActive) {
+      n.setAttribute('aria-current', 'page');
+    } else {
+      n.removeAttribute('aria-current');
+    }
   });
 
   const main = document.getElementById('mainContent');

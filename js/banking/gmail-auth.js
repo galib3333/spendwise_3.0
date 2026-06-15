@@ -2,7 +2,6 @@
 // Client-side OAuth using implicit grant flow — no server needed
 
 const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
-const TOKEN_KEY = 'sw_gmail_refresh';
 const CONNECTED_KEY = 'sw_gmail_connected';
 
 let _tokenClient = null;
@@ -48,11 +47,6 @@ export function initGmailAuth(clientId) {
         _accessToken = tokenResponse.access_token;
         _tokenExpiry = Date.now() + (tokenResponse.expires_in * 1000) - 60000;
         localStorage.setItem(CONNECTED_KEY, 'true');
-
-        // Store refresh token if available
-        if (tokenResponse.refresh_token) {
-          localStorage.setItem(TOKEN_KEY, tokenResponse.refresh_token);
-        }
         notifyChange(true);
       },
       error_callback: (err) => {
@@ -84,7 +78,6 @@ export function disconnectGmail() {
   }
   _accessToken = null;
   _tokenExpiry = 0;
-  localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(CONNECTED_KEY);
   notifyChange(false);
 }

@@ -1,6 +1,8 @@
 // ===== SECURITY MODULE =====
 // Web Crypto API encryption + PIN hashing + biometric support
 
+import { today } from './utils.js';
+
 const SALT_KEY = 'sw_salt';
 const HASH_KEY = 'sw_pin_hash';
 const LOCK_KEY = 'sw_lock';
@@ -199,7 +201,7 @@ export function getPrivacyPolicy() {
   return `
 # SpendWise — Privacy Policy
 
-Last updated: ${new Date().toISOString().slice(0,10)}
+Last updated: ${today()}
 
 ## Data Collection
 SpendWise does **NOT** collect, store, or transmit any personal data to external servers. All data is stored locally on your device.

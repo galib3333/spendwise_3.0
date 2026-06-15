@@ -3,7 +3,7 @@ import { initStore, getSettings, updateSettings, addTransaction, getTransactions
 import { initRouter, navigate, registerPage } from './router.js';
 import { initModals } from './modals.js';
 import { setChartUtils } from './charts.js';
-import { fmt, fmtShort, EXPENSE_CATS, validateTransaction, uid, today } from './utils.js';
+import { fmt, fmtShort, EXPENSE_CATS, validateTransaction, uid, today, parseLocalDate, addMonths } from './utils.js';
 import { applyTheme } from './pages/settings.js';
 import { toastSuccess, toastError, toastWarning } from './toast.js';
 import { initLockScreen, lockApp, resetLockTimer, stopLockTimer } from './lockscreen.js';
@@ -78,7 +78,7 @@ function processRecurring() {
         case 'quarterly': d.setMonth(d.getMonth() + 3); break;
         case 'yearly': d.setFullYear(d.getFullYear() + 1); break;
       }
-      const nextDateStr = d.toISOString().slice(0, 10);
+      const nextDateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
       // If past end date, deactivate instead of advancing
       if(r.endDate && nextDateStr > r.endDate) {
@@ -382,7 +382,7 @@ function syncOrphanedRecurring() {
       frequency: freq,
       category: t.category,
       startDate: t.date,
-      nextDate: next.toISOString().slice(0, 10),
+      nextDate: `${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,'0')}-${String(next.getDate()).padStart(2,'0')}`,
       endDate: null,
       active: true
     });

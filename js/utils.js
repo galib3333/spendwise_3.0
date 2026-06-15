@@ -34,9 +34,31 @@ export function fmtCompact(n, currency) {
   if (n >= 1000) return currency + (n / 1000).toFixed(1) + 'K';
   return currency + n.toFixed(0);
 }
-export function today() { return new Date().toISOString().slice(0,10); }
+export function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 // ===== DATE HELPERS =====
+export function parseLocalDate(dateStr) {
+  if (!dateStr) return new Date();
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+export function toDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+export function getWeekStart(d) { const dt = new Date(d); const day = dt.getDay(); dt.setDate(dt.getDate() - day); return dt; }
+export function addDays(dateStr, days) {
+  const d = parseLocalDate(dateStr);
+  d.setDate(d.getDate() + days);
+  return toDateStr(d);
+}
+export function addMonths(dateStr, months) {
+  const d = parseLocalDate(dateStr);
+  d.setMonth(d.getMonth() + months);
+  return toDateStr(d);
+}
 export function getMonthStart(offset = 0) {
   const d = new Date();
   d.setMonth(d.getMonth() + offset);
@@ -45,7 +67,7 @@ export function getMonthStart(offset = 0) {
 export function getMonthEnd(offset = 0) {
   const d = new Date();
   d.setMonth(d.getMonth() + offset + 1, 0);
-  return d.toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // ===== SHARED QUERY HELPERS =====
@@ -76,13 +98,12 @@ export function formatDate(dateStr, format) {
   }
 }
 
-function getWeekStart(d) { const dt=new Date(d); const day=dt.getDay(); dt.setDate(dt.getDate()-day); return dt; }
 export function getCat(id) { return ALL_CATS.find(c=>c.id===id) || {name:'Unknown',icon:'❓',color:'#9aa0b0'}; }
 
 export function getWeekDates(date) {
   const start = getWeekStart(new Date(date));
   const dates = [];
-  for(let i=0;i<7;i++) { const d=new Date(start); d.setDate(d.getDate()+i); dates.push(d.toISOString().slice(0,10)); }
+  for(let i=0;i<7;i++) { const d=new Date(start); d.setDate(d.getDate()+i); dates.push(toDateStr(d)); }
   return dates;
 }
 

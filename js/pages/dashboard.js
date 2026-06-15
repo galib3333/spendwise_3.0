@@ -3,6 +3,7 @@ import { getTransactions, getBudgets, getSavingsGoals, getRecurringList, getSett
 import { today, fmt, getCat, getExpenses as _getExpenses, getIncome as _getIncome, sumByCategory as _sumByCategory, getMonthStart, getMonthEnd } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { drawPieChart, drawBarChart, drawHealthRing } from '../charts.js';
+import { renderCard, ICONS } from '../helpers.js';
 
 function getExpenses(start, end) { return _getExpenses(getTransactions(), start, end); }
 function getIncome(start, end) { return _getIncome(getTransactions(), start, end); }
@@ -11,10 +12,8 @@ function sumByCategory(items) { return _sumByCategory(items); }
 let dashMonthOffset = 0;
 
 function calcHealthScore(monthStart, monthEnd) {
-  const now = new Date();
   const thisMonthExp = getExpenses(monthStart, monthEnd);
 
-  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1 + dashMonthOffset, 1);
   const lmStart = getMonthStart(-1 + dashMonthOffset);
   const lmEnd = getMonthEnd(-1 + dashMonthOffset);
   const lastMonthExp = getExpenses(lmStart, lmEnd);
@@ -102,8 +101,9 @@ function calcHealthScoreRaw(monthStart, monthEnd, offset) {
   const now = new Date();
   const thisMonthExp = getExpenses(monthStart, monthEnd);
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1 + offset, 1);
-  const lmStart = lastMonth.toISOString().slice(0, 7) + '-01';
-  const lmEnd = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const lmStart = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth()+1).padStart(2,'0')}-01`;
+  const lmEndD = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0);
+  const lmEnd = `${lmEndD.getFullYear()}-${String(lmEndD.getMonth()+1).padStart(2,'0')}-${String(lmEndD.getDate()).padStart(2,'0')}`;
   const lastMonthExp = getExpenses(lmStart, lmEnd);
   const thisMonthInc = getIncome(monthStart, monthEnd);
   const totalExp = thisMonthExp.reduce((s, x) => s + x.amount, 0);
@@ -214,7 +214,9 @@ function getPrompts(monthStart, monthEnd) {
 
   const recurringList = getRecurringList();
   const upcomingRecurring = recurringList.filter(r => r.active && r.nextDate <= t);
-  const futureRecurring = recurringList.filter(r => r.active && r.nextDate > t && r.nextDate <= new Date(now.getTime() + 7 * 86400000).toISOString().slice(0, 10));
+  const futureDate = new Date(now.getTime() + 7 * 86400000);
+  const futureDateStr = `${futureDate.getFullYear()}-${String(futureDate.getMonth()+1).padStart(2,'0')}-${String(futureDate.getDate()).padStart(2,'0')}`;
+  const futureRecurring = recurringList.filter(r => r.active && r.nextDate > t && r.nextDate <= futureDateStr);
 
   if(upcomingRecurring.length > 0) {
     const total = upcomingRecurring.reduce((s, r) => s + r.amount, 0);
@@ -306,11 +308,11 @@ export function renderDashboard(container) {
         <div class="header-actions">
           <div class="period-nav">
             <button class="btn btn-ghost btn-sm btn-icon" id="dashPrev" aria-label="Previous month">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              ${ICONS.chevronLeft}
             </button>
             <span class="period-label">${isCurrentMonth ? 'This Month' : monthName}</span>
             <button class="btn btn-ghost btn-sm btn-icon" id="dashNext" aria-label="Next month" ${isCurrentMonth ? 'disabled' : ''}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              ${ICONS.chevronRight}
             </button>
             ${!isCurrentMonth ? '<button class="btn btn-ghost btn-sm" id="dashToday">Today</button>' : ''}
           </div>
@@ -388,7 +390,7 @@ export function renderDashboard(container) {
       ${insights.length ? `
         <div class="insights-panel" role="region" aria-label="Spending insights">
           <div class="insights-header">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            ${ICONS.info}
             Insights
           </div>
           ${insights.map(i => `
@@ -402,9 +404,9 @@ export function renderDashboard(container) {
       ` : ''}
 
       <div class="cards-grid cards-grid-3">
-        <div class="card"><div class="card-label">💰 Monthly Income</div><div class="card-value green">${fmt(totalInc, settings.currency)}</div></div>
-        <div class="card"><div class="card-label">💸 Monthly Expenses</div><div class="card-value red">${fmt(totalExp, settings.currency)}</div></div>
-        <div class="card"><div class="card-label">📊 Net Savings</div><div class="card-value ${savings >= 0 ? 'green' : 'red'}">${fmt(savings, settings.currency)}</div></div>
+        ${renderCard('💰 Monthly Income', fmt(totalInc, settings.currency), 'green')}
+        ${renderCard('💸 Monthly Expenses', fmt(totalExp, settings.currency), 'red')}
+        ${renderCard('📊 Net Savings', fmt(savings, settings.currency), savings >= 0 ? 'green' : 'red')}
       </div>
 
       ${budgetAlerts.length ? `
