@@ -1,6 +1,6 @@
 // ===== DASHBOARD PAGE =====
 import { getTransactions, getBudgets, getSavingsGoals, getRecurringList, getSettings } from '../store.js';
-import { fmt, getCat, getExpenses as _getExpenses, getIncome as _getIncome, sumByCategory as _sumByCategory, getMonthStart, getMonthEnd } from '../utils.js';
+import { fmt, today, getCat, getExpenses as _getExpenses, getIncome as _getIncome, sumByCategory as _sumByCategory, getMonthStart, getMonthEnd } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { drawPieChart, drawBarChart, drawHealthRing } from '../charts.js';
 
