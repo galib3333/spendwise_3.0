@@ -43,6 +43,7 @@ import { renderSavings } from './pages/savings.js';
 import { renderExport } from './pages/export-page.js';
 import { renderSettings } from './pages/settings.js';
 import { renderBusiness, renderBizExpenses, renderBizSales, renderBizReports } from './pages/business.js';
+import { renderBanking } from './pages/banking.js';
 
 // ===== RECURRING PROCESSING =====
 function processRecurring() {
@@ -235,6 +236,10 @@ const PERSONAL_NAV = `
     Savings Goals
   </div>
   <div class="nav-section" role="separator">Tools</div>
+  <div class="nav-item" data-page="banking" role="menuitem" tabindex="0">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg>
+    Banking
+  </div>
   <div class="nav-item" data-page="export" role="menuitem" tabindex="0">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
     Export Data
@@ -265,6 +270,10 @@ const BUSINESS_NAV = `
     Reports
   </div>
   <div class="nav-section" role="separator">Tools</div>
+  <div class="nav-item" data-page="banking" role="menuitem" tabindex="0">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg>
+    Banking
+  </div>
   <div class="nav-item" data-page="export" role="menuitem" tabindex="0">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
     Export Data
@@ -405,6 +414,7 @@ async function init() {
   registerPage('savings', renderSavings);
   registerPage('export', renderExport);
   registerPage('settings', renderSettings);
+  registerPage('banking', renderBanking);
   registerPage('business', renderBusiness);
   registerPage('biz-expenses', renderBizExpenses);
   registerPage('biz-sales', renderBizSales);

@@ -4,6 +4,7 @@ import { escapeHTML } from '../sanitize.js';
 import { toastSuccess } from '../toast.js';
 import { hasPIN, isLockEnabled, getLockTimeout, setLockTimeout, getPrivacyPolicy } from '../security.js';
 import { changePIN, disableLock, showLockScreen } from '../lockscreen.js';
+import { isGmailConnected, renderGmailStatus } from '../banking/gmail-auth.js';
 
 export function applyTheme() {
   const settings = getSettings();
@@ -86,6 +87,21 @@ export function renderSettings(container) {
         <div class="flex gap-8" id="pinActions" style="${pinSet ? '' : 'display:none'}">
           <button class="btn btn-secondary" id="changePinBtn">Change PIN</button>
           <button class="btn btn-secondary" id="removePinBtn" style="color:var(--red)">Remove PIN</button>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
+        <h3 style="margin-bottom:16px">Integrations</h3>
+
+        <div class="input-group">
+          <label>Gmail Auto-Import (bKash / EBL)</label>
+          ${renderGmailStatus()}
+          <p class="text-sm text-muted" style="margin:8px 0 0">Auto-import transactions from bKash and EBL email notifications.</p>
+        </div>
+
+        <div class="input-group">
+          <label for="gmailClientId">Gmail OAuth Client ID</label>
+          <input type="text" class="input" id="gmailClientId" placeholder="123456789-abcdef.apps.googleusercontent.com" value="${escapeHTML(localStorage.getItem('sw_gmail_client_id') || '')}">
+          <p class="text-sm text-muted" style="margin:4px 0 0">From Google Cloud Console → Credentials → OAuth 2.0</p>
         </div>
 
         <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
@@ -182,6 +198,17 @@ export function renderSettings(container) {
     document.body.appendChild(overlay);
     overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
     overlay.querySelector('#privacyCloseBtn')?.addEventListener('click', () => overlay.remove());
+  });
+
+  // Gmail Client ID
+  document.getElementById('gmailClientId')?.addEventListener('change', e => {
+    const val = e.target.value.trim();
+    if (val) {
+      localStorage.setItem('sw_gmail_client_id', val);
+    } else {
+      localStorage.removeItem('sw_gmail_client_id');
+    }
+    toastSuccess('Gmail Client ID saved');
   });
 
   // Reset data

@@ -3,7 +3,7 @@
 
 const DB_NAME = 'spendwise';
 const DB_VERSION = 2;
-const STORES = ['transactions', 'budgets', 'savingsGoals', 'recurringList', 'settings', 'businessProfile', 'businessTransactions', 'businessCategories'];
+const STORES = ['transactions', 'budgets', 'savingsGoals', 'recurringList', 'settings', 'businessProfile', 'businessTransactions', 'businessCategories', 'bankAccounts', 'bankTransactions'];
 
 let db = null;
 let useIndexedDB = true;

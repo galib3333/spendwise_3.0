@@ -20,7 +20,10 @@ let state = {
   appMode: 'personal', // 'personal' | 'business'
   businessProfile: null, // { id: 'profile', name, type, taxId, address, phone }
   businessTransactions: [],
-  businessCategories: []
+  businessCategories: [],
+  // Banking state
+  bankAccounts: [], // { id, provider, name, accountNumber, currentBalance, initialBalance, lastSynced, color }
+  bankTransactions: [] // parsed email transactions linked to accounts
 };
 
 let _storageMode = 'localStorage'; // 'indexeddb' | 'localStorage'
@@ -48,14 +51,16 @@ export async function initStore() {
     _storageMode = 'indexeddb';
 
     // Load from IndexedDB
-    const [txns, budgets, savings, recurring, bizProfile, bizTxns, bizCats] = await Promise.all([
+    const [txns, budgets, savings, recurring, bizProfile, bizTxns, bizCats, bankAccts, bankTxns] = await Promise.all([
       dbGetAll('transactions'),
       dbGetAll('budgets'),
       dbGetAll('savingsGoals'),
       dbGetAll('recurringList'),
       dbGetSetting('businessProfile'),
       dbGetAll('businessTransactions'),
-      dbGetAll('businessCategories')
+      dbGetAll('businessCategories'),
+      dbGetAll('bankAccounts'),
+      dbGetAll('bankTransactions')
     ]);
 
     state.transactions = txns || [];
@@ -65,6 +70,8 @@ export async function initStore() {
     state.businessProfile = bizProfile || null;
     state.businessTransactions = bizTxns || [];
     state.businessCategories = bizCats || [];
+    state.bankAccounts = bankAccts || [];
+    state.bankTransactions = bankTxns || [];
 
     // Load settings
     const settingsKeys = ['currency', 'theme', 'dateFormat', 'appMode'];
@@ -87,6 +94,8 @@ export async function initStore() {
     state.businessProfile = lsLoad('businessProfile', null);
     state.businessTransactions = lsLoad('businessTransactions', []);
     state.businessCategories = lsLoad('businessCategories', []);
+    state.bankAccounts = lsLoad('bankAccounts', []);
+    state.bankTransactions = lsLoad('bankTransactions', []);
   }
 }
 
@@ -104,7 +113,9 @@ async function persist() {
       dbSetSetting('appMode', state.appMode),
       dbSetSetting('businessProfile', state.businessProfile),
       dbPutAll('businessTransactions', state.businessTransactions),
-      dbPutAll('businessCategories', state.businessCategories)
+      dbPutAll('businessCategories', state.businessCategories),
+      dbPutAll('bankAccounts', state.bankAccounts),
+      dbPutAll('bankTransactions', state.bankTransactions)
     ]);
   } else {
     lsSave('transactions', state.transactions);
@@ -116,6 +127,8 @@ async function persist() {
     lsSave('businessProfile', state.businessProfile);
     lsSave('businessTransactions', state.businessTransactions);
     lsSave('businessCategories', state.businessCategories);
+    lsSave('bankAccounts', state.bankAccounts);
+    lsSave('bankTransactions', state.bankTransactions);
   }
 }
 
@@ -131,6 +144,8 @@ function persistSync() {
     lsSave('businessProfile', state.businessProfile);
     lsSave('businessTransactions', state.businessTransactions);
     lsSave('businessCategories', state.businessCategories);
+    lsSave('bankAccounts', state.bankAccounts);
+    lsSave('bankTransactions', state.bankTransactions);
   } else {
     // Fire-and-forget async persist
     persist();
@@ -160,6 +175,8 @@ export function getAppMode() { return state.appMode; }
 export function getBusinessProfile() { return state.businessProfile ? { ...state.businessProfile } : null; }
 export function getBusinessTransactions() { return [...state.businessTransactions]; }
 export function getBusinessCategories() { return [...state.businessCategories]; }
+export function getBankAccounts() { return [...state.bankAccounts]; }
+export function getBankTransactions() { return [...state.bankTransactions]; }
 
 // ===== TRANSACTIONS =====
 export function addTransaction(data) {
@@ -352,6 +369,58 @@ export function deleteBusinessCategory(id) {
   return null;
 }
 
+// ===== BANK ACCOUNTS =====
+export function addBankAccount(data) {
+  state.bankAccounts.push(data);
+  persistSync(); notify('bankAccounts');
+}
+
+export function updateBankAccount(id, data) {
+  const idx = state.bankAccounts.findIndex(a => a.id === id);
+  if (idx >= 0) {
+    state.bankAccounts[idx] = { ...state.bankAccounts[idx], ...data };
+    persistSync(); notify('bankAccounts');
+    return true;
+  }
+  return false;
+}
+
+export function deleteBankAccount(id) {
+  const idx = state.bankAccounts.findIndex(a => a.id === id);
+  if (idx >= 0) {
+    const removed = state.bankAccounts.splice(idx, 1)[0];
+    state.bankTransactions = state.bankTransactions.filter(t => t.bankAccountId !== id);
+    persistSync(); notify('bankAccounts'); notify('bankTransactions');
+    return removed;
+  }
+  return null;
+}
+
+// ===== BANK TRANSACTIONS =====
+export function addBankTransaction(data) {
+  state.bankTransactions.push(data);
+  persistSync(); notify('bankTransactions');
+}
+
+export function addBulkBankTransactions(items) {
+  state.bankTransactions.push(...items);
+  persistSync(); notify('bankTransactions');
+}
+
+export function deleteBankTransaction(id) {
+  const idx = state.bankTransactions.findIndex(t => t.id === id);
+  if (idx >= 0) {
+    const removed = state.bankTransactions.splice(idx, 1)[0];
+    persistSync(); notify('bankTransactions');
+    return removed;
+  }
+  return null;
+}
+
+export function getBankTransactionsForAccount(accountId) {
+  return state.bankTransactions.filter(t => t.bankAccountId === accountId);
+}
+
 // ===== BULK OPERATIONS =====
 export function addBulkTransactions(items) {
   state.transactions.push(...items);
@@ -366,9 +435,12 @@ export function replaceAllData(data) {
   if (data.businessProfile) state.businessProfile = data.businessProfile;
   if (data.businessTransactions) state.businessTransactions = data.businessTransactions;
   if (data.businessCategories) state.businessCategories = data.businessCategories;
+  if (data.bankAccounts) state.bankAccounts = data.bankAccounts;
+  if (data.bankTransactions) state.bankTransactions = data.bankTransactions;
   persistSync();
   notify('transactions'); notify('budgets'); notify('savingsGoals'); notify('recurringList');
   notify('businessProfile'); notify('businessTransactions'); notify('businessCategories');
+  notify('bankAccounts'); notify('bankTransactions');
 }
 
 export function clearAllData() {
@@ -379,6 +451,8 @@ export function clearAllData() {
   state.businessProfile = null;
   state.businessTransactions = [];
   state.businessCategories = [];
+  state.bankAccounts = [];
+  state.bankTransactions = [];
   persistSync();
   // Clear security data
   localStorage.removeItem('sw_salt');
@@ -386,6 +460,9 @@ export function clearAllData() {
   localStorage.removeItem('sw_lock');
   localStorage.removeItem('sw_lock_attempts');
   localStorage.removeItem('sw_lock_timeout');
+  // Clear Gmail data
+  localStorage.removeItem('sw_gmail_refresh');
+  localStorage.removeItem('sw_gmail_connected');
   // Clear IndexedDB if available
   if (_storageMode === 'indexeddb') {
     dbClear('transactions');
@@ -394,7 +471,10 @@ export function clearAllData() {
     dbClear('recurringList');
     dbClear('businessTransactions');
     dbClear('businessCategories');
+    dbClear('bankAccounts');
+    dbClear('bankTransactions');
   }
   notify('transactions'); notify('budgets'); notify('savingsGoals'); notify('recurringList');
   notify('businessProfile'); notify('businessTransactions'); notify('businessCategories');
+  notify('bankAccounts'); notify('bankTransactions');
 }
