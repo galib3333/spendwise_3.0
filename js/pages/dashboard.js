@@ -3,7 +3,6 @@ import { getTransactions, getBudgets, getSavingsGoals, getRecurringList, getSett
 import { today, fmt, getCat, getExpenses as _getExpenses, getIncome as _getIncome, sumByCategory as _sumByCategory, getMonthStart, getMonthEnd } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { drawPieChart, drawBarChart, drawHealthRing } from '../charts.js';
-import { renderCard } from '../helpers.js';
 
 function getExpenses(start, end) { return _getExpenses(getTransactions(), start, end); }
 function getIncome(start, end) { return _getIncome(getTransactions(), start, end); }
@@ -404,9 +403,9 @@ export function renderDashboard(container) {
       ` : ''}
 
       <div class="cards-grid cards-grid-3">
-        ${renderCard('💰 Monthly Income', fmt(totalInc, settings.currency), 'green')}
-        ${renderCard('💸 Monthly Expenses', fmt(totalExp, settings.currency), 'red')}
-        ${renderCard('📊 Net Savings', fmt(savings, settings.currency), savings >= 0 ? 'green' : 'red')}
+        <div class="card"><div class="card-label">💰 Monthly Income</div><div class="card-value green">${fmt(totalInc, settings.currency)}</div></div>
+        <div class="card"><div class="card-label">💸 Monthly Expenses</div><div class="card-value red">${fmt(totalExp, settings.currency)}</div></div>
+        <div class="card"><div class="card-label">📊 Net Savings</div><div class="card-value ${savings >= 0 ? 'green' : 'red'}">${fmt(savings, settings.currency)}</div></div>
       </div>
 
       ${budgetAlerts.length ? `

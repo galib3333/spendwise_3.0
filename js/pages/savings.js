@@ -5,7 +5,6 @@ import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastInfo, toastError } from '../toast.js';
 import { openModal, closeModal } from '../modals.js';
 import { drawLineChart } from '../charts.js';
-import { renderCard } from '../helpers.js';
 
 function openAddGoal() {
   document.getElementById('goalEditId').value = '';
@@ -104,9 +103,12 @@ export function renderSavings(container) {
         </button>
       </div>
       <div class="cards-grid">
-        ${renderCard('💎 Total Saved', fmt(totalSaved, settings.currency), '')}
-        ${renderCard('🎯 Total Target', fmt(totalTarget, settings.currency), 'accent')}
-        ${renderCard('📊 Overall Progress', totalTarget ? (totalSaved / totalTarget * 100).toFixed(1) + '%' : '0%', totalTarget ? (totalSaved / totalTarget * 100 >= 100 ? 'green' : 'yellow') : 'accent')}
+        <div class="card savings-card">
+          <div class="card-label">💎 Total Saved</div>
+          <div class="card-value">${fmt(totalSaved, settings.currency)}</div>
+        </div>
+        <div class="card"><div class="card-label">🎯 Total Target</div><div class="card-value accent">${fmt(totalTarget, settings.currency)}</div></div>
+        <div class="card"><div class="card-label">📊 Overall Progress</div><div class="card-value ${totalTarget ? (totalSaved / totalTarget * 100 >= 100 ? 'green' : 'yellow') : 'accent'}">${totalTarget ? (totalSaved / totalTarget * 100).toFixed(1) : 0}%</div></div>
       </div>
       <div class="panel mb-20">
         <div class="panel-header"><h3>Savings Trend</h3><span class="text-sm text-muted">Last 6 months</span></div>

@@ -3,7 +3,6 @@ import { getTransactions, getSettings } from '../store.js';
 import { fmt, formatDate, getCat, getWeekDates, PAYMENT_LABELS, getExpenses as _getExpenses, getIncome as _getIncome, sumByCategory as _sumByCategory, getMonthStart, getMonthEnd } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { drawPieChart, drawBarChart, drawLineChart } from '../charts.js';
-import { renderCard } from '../helpers.js';
 
 function getExpenses(start, end) { return _getExpenses(getTransactions(), start, end); }
 function getIncome(start, end) { return _getIncome(getTransactions(), start, end); }
@@ -63,10 +62,10 @@ export function renderWeekly(container) {
         </div>
       </div>
       <div class="cards-grid">
-        ${renderCard('💸 Total Spent', fmt(totalExp, settings.currency), 'red')}
-        ${renderCard('💰 Income', fmt(totalInc, settings.currency), 'green')}
-        ${renderCard('📊 Transactions', exp.length + inc.length, 'accent')}
-        ${renderCard('📈 Avg/Day', fmt(totalExp / 7, settings.currency), 'yellow')}
+        <div class="card"><div class="card-label">💸 Total Spent</div><div class="card-value red">${fmt(totalExp, settings.currency)}</div></div>
+        <div class="card"><div class="card-label">💰 Income</div><div class="card-value green">${fmt(totalInc, settings.currency)}</div></div>
+        <div class="card"><div class="card-label">📊 Transactions</div><div class="card-value accent">${exp.length + inc.length}</div></div>
+        <div class="card"><div class="card-label">📈 Avg/Day</div><div class="card-value yellow">${fmt(totalExp / 7, settings.currency)}</div></div>
       </div>
       <div class="grid-2">
         <div class="panel">
@@ -177,10 +176,10 @@ export function renderMonthly(container) {
         </div>
       </div>
       <div class="cards-grid">
-        ${renderCard('💸 Total Expenses', fmt(totalExp, settings.currency), 'red')}
-        ${renderCard('💰 Total Income', fmt(totalInc, settings.currency), 'green')}
-        ${renderCard('🏦 Net Balance', fmt(totalInc - totalExp, settings.currency), totalInc - totalExp >= 0 ? 'green' : 'red')}
-        ${renderCard('📅 Avg Daily', fmt(avgPerDay, settings.currency), 'accent')}
+        <div class="card"><div class="card-label">💸 Total Expenses</div><div class="card-value red">${fmt(totalExp, settings.currency)}</div></div>
+        <div class="card"><div class="card-label">💰 Total Income</div><div class="card-value green">${fmt(totalInc, settings.currency)}</div></div>
+        <div class="card"><div class="card-label">🏦 Net Balance</div><div class="card-value ${totalInc - totalExp >= 0 ? 'green' : 'red'}">${fmt(totalInc - totalExp, settings.currency)}</div></div>
+        <div class="card"><div class="card-label">📅 Avg Daily</div><div class="card-value accent">${fmt(avgPerDay, settings.currency)}</div></div>
       </div>
       <div class="grid-2">
         <div class="panel">
@@ -310,10 +309,10 @@ export function renderYearly(container) {
         </div>
       </div>
       <div class="cards-grid">
-        ${renderCard('💸 Total Expenses', fmt(totalExp, settings.currency), 'red')}
-        ${renderCard('💰 Total Income', fmt(totalInc, settings.currency), 'green')}
-        ${renderCard('🏦 Net Savings', fmt(totalInc - totalExp, settings.currency), totalInc - totalExp >= 0 ? 'green' : 'red')}
-        ${renderCard('📊 Savings Rate', totalInc ? ((totalInc - totalExp) / totalInc * 100).toFixed(1) + '%' : '0%', 'accent')}
+        <div class="card"><div class="card-label">💸 Total Expenses</div><div class="card-value red">${fmt(totalExp, settings.currency)}</div></div>
+        <div class="card"><div class="card-label">💰 Total Income</div><div class="card-value green">${fmt(totalInc, settings.currency)}</div></div>
+        <div class="card"><div class="card-label">🏦 Net Savings</div><div class="card-value ${totalInc - totalExp >= 0 ? 'green' : 'red'}">${fmt(totalInc - totalExp, settings.currency)}</div></div>
+        <div class="card"><div class="card-label">📊 Savings Rate</div><div class="card-value accent">${totalInc ? ((totalInc - totalExp) / totalInc * 100).toFixed(1) : 0}%</div></div>
       </div>
       <div class="panel mb-20">
         <div class="panel-header"><h3>Monthly Comparison</h3></div>
