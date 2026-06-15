@@ -7,6 +7,7 @@ import { fmt, fmtShort, EXPENSE_CATS, validateTransaction, uid, today } from './
 import { applyTheme } from './pages/settings.js';
 import { toastSuccess, toastError, toastWarning } from './toast.js';
 import { initLockScreen, lockApp, resetLockTimer, stopLockTimer } from './lockscreen.js';
+import { isLockEnabled, isLocked } from './security.js';
 import { initKeyboardShortcuts } from './shortcuts.js';
 import { shouldShowOnboarding, showOnboarding } from './onboarding.js';
 
