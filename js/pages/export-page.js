@@ -1,5 +1,5 @@
 // ===== EXPORT PAGE =====
-import { getTransactions, getBudgets, getSavingsGoals, getRecurringList, addBulkTransactions, replaceAllData, getBusinessProfile, getBusinessTransactions, getBusinessCategories } from '../store.js';
+import { getTransactions, getBudgets, getSavingsGoals, getRecurringList, addBulkTransactions, replaceAllData, getBusinessProfile, getBusinessTransactions, getBusinessCategories, getSettings } from '../store.js';
 import { today, fmt, getCat, escapeCSV, parseCSVSimple, detectBankFormat, mapCSVRow, sanitizeImportData, uid } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastError } from '../toast.js';
@@ -147,8 +147,7 @@ function exportJSON() {
 }
 
 function exportMonthlyReport() {
-  const settings = { currency: '₹' };
-  try { settings.currency = JSON.parse(localStorage.getItem('sw_settings'))?.currency || '₹'; } catch {}
+  const settings = getSettings();
   const now = new Date();
   const ms = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
   const me = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);

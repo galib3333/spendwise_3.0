@@ -285,6 +285,29 @@ export function validateRecurring(data) {
   return errors;
 }
 
+export function validateBusinessTransaction(data) {
+  const errors = [];
+  if (!data.amount || isNaN(data.amount) || data.amount <= 0) errors.push('Amount must be a positive number');
+  if (data.amount > MAX_AMOUNT) errors.push('Amount exceeds maximum allowed');
+  if (!data.date || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) errors.push('Invalid date format');
+  if (!data.category) errors.push('Category is required');
+  if (!['expense', 'income'].includes(data.type)) errors.push('Invalid transaction type');
+  if (data.payment && !['cash', 'card', 'bank', 'mobile'].includes(data.payment)) errors.push('Invalid payment method');
+  if (data.description && data.description.length > MAX_DESC_LENGTH) errors.push(`Description must be ${MAX_DESC_LENGTH} characters or less`);
+  if (data.tax != null && (isNaN(data.tax) || data.tax < 0)) errors.push('Tax must be a non-negative number');
+  if (data.taxRate != null && (isNaN(data.taxRate) || data.taxRate < 0 || data.taxRate > 100)) errors.push('Tax rate must be between 0 and 100');
+  return errors;
+}
+
+export function validateBusinessCategory(data) {
+  const errors = [];
+  if (!data.name || !data.name.trim()) errors.push('Category name is required');
+  if (data.name && data.name.length > 50) errors.push('Category name must be 50 characters or less');
+  if (!['expense', 'income'].includes(data.type)) errors.push('Invalid category type');
+  if (data.taxRate == null || isNaN(data.taxRate) || data.taxRate < 0 || data.taxRate > 100) errors.push('Tax rate must be between 0 and 100');
+  return errors;
+}
+
 export function sanitizeImportData(data) {
   if(!data || typeof data !== 'object') return null;
   const clean = {};
@@ -332,6 +355,37 @@ export function sanitizeImportData(data) {
       nextDate: String(r.nextDate || today()),
       endDate: r.endDate || null,
       active: r.active !== false
+    }));
+  }
+  if (data.businessProfile && typeof data.businessProfile === 'object') {
+    clean.businessProfile = {
+      id: 'profile',
+      name: String(data.businessProfile.name || '').slice(0, 100),
+      type: ['retail', 'grocery', 'restaurant', 'service', 'pharmacy'].includes(data.businessProfile.type) ? data.businessProfile.type : 'retail',
+      taxId: String(data.businessProfile.taxId || '').slice(0, 50)
+    };
+  }
+  if (Array.isArray(data.businessTransactions)) {
+    clean.businessTransactions = data.businessTransactions.filter(t => t && typeof t === 'object' && t.amount && t.date && t.type).map(t => ({
+      id: String(t.id || uid()),
+      type: ['expense', 'income'].includes(t.type) ? t.type : 'expense',
+      amount: Math.max(0, Number(t.amount) || 0),
+      date: String(t.date).slice(0, 10),
+      category: String(t.category || ''),
+      description: String(t.description || '').slice(0, 200),
+      payment: ['cash', 'card', 'bank', 'mobile'].includes(t.payment) ? t.payment : 'cash',
+      tax: Math.max(0, Number(t.tax) || 0),
+      taxRate: Math.max(0, Number(t.taxRate) || 0),
+      createdBy: String(t.createdBy || 'owner')
+    }));
+  }
+  if (Array.isArray(data.businessCategories)) {
+    clean.businessCategories = data.businessCategories.filter(c => c && typeof c === 'object' && c.name).map(c => ({
+      id: String(c.id || uid()),
+      name: String(c.name).slice(0, 50),
+      icon: String(c.icon || '📋').slice(0, 4),
+      type: ['expense', 'income'].includes(c.type) ? c.type : 'expense',
+      taxRate: Math.max(0, Math.min(100, Number(c.taxRate) || 0))
     }));
   }
   return clean;
