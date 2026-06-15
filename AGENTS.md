@@ -84,11 +84,11 @@ spendwise_3.0/
 
 ### Page Module Pattern
 ```js
-import { renderCard, renderCatOptions, ICONS } from '../helpers.js';
+import { renderCatOptions } from '../helpers.js';
 
 export function renderX(container) {
   // 1. Read state from store
-  // 2. Set container.innerHTML with HTML (use renderCard, ICONS, etc.)
+  // 2. Set container.innerHTML with HTML
   // 3. Bind event listeners on elements by ID
 }
 ```
@@ -96,7 +96,6 @@ export function renderX(container) {
 - Event binding happens after `innerHTML` assignment
 - Use `?.` for optional chaining on DOM queries
 - Store container refs in module-level vars for callbacks
-- Use `renderCard(label, value, colorClass)` for metric cards
 - Use `renderCatOptions(cats, selected)` for category `<select>` elements
 - Use `ICONS.xxx` for inline SVG icons (edit, delete, plus, close, etc.)
 
@@ -188,13 +187,14 @@ export function renderX(container) {
 ## When Refactoring
 
 1. **Run `npm test` and `npm run build`** before committing
-2. **Check all date handling** — ensure local dates, not UTC
+2. **Check all date handling** — use `parseLocalDate()`/`toDateStr()`, NEVER `toISOString().slice(0,10)`
 3. **Check imports** — unused imports cause warnings, missing imports cause runtime crashes
 4. **Check null safety** — use `?.` for DOM queries that may not exist
 5. **Check event listener cleanup** — prevent stacking (see `modals.js`, `banking.js`)
 6. **Check container refs** — callbacks should use stored refs, not re-query DOM
 7. **Check for `document.getElementById('mainContent')`** — should use `container` param
-8. **Use shared helpers** — `renderCard`, `renderCatOptions`, `ICONS` from `helpers.js`
+8. **Use shared helpers** — `renderCatOptions` from `helpers.js`
+9. **Catch params** — use `_e` only if error is unused; otherwise keep as `e` and log it
 
 ---
 
@@ -204,7 +204,7 @@ export function renderX(container) {
 |------|-------|
 | `app.js` | Nav strings (`PERSONAL_NAV`, `BUSINESS_NAV`) are large HTML templates |
 | `store.js` | Generic CRUD factory (`crudOps`) — add/update/delete for all entities; `clearAllData()` must clear ALL stores |
-| `helpers.js` | Shared UI: `renderCard`, `renderEmptyState`, `renderCatOptions`, `createModal`, `ICONS` |
+| `helpers.js` | Shared UI: `renderCatOptions`, `createModal`, `ICONS` |
 | `utils.js` | Date helpers: `parseLocalDate`, `toDateStr`, `addDays`, `addMonths`; query helpers: `getExpenses`, `getIncome`, `sumByCategory` |
 | `db.js` | `idbPutAll` clears store before insert — data loss risk on partial failure |
 | `charts.js` | `Math.max(...data)` can overflow with large arrays — use `reduce` |
@@ -216,17 +216,15 @@ export function renderX(container) {
 
 ---
 
-## Lightweight Refactoring (Phase 2)
+## Refactoring Summary
 
 ### Shared Helpers (`js/helpers.js`)
-- `renderCard(label, value, colorClass)` — renders a metric card
-- `renderEmptyState(message)` — renders empty state with text
 - `renderCatOptions(cats, selected)` — renders category `<option>` elements
 - `renderExpenseCatOptions(selected)` — shortcut for expense categories
 - `bindPeriodNav(container, prefix, getOffset, setOffset, onNavigate)` — binds period nav
 - `bindDataActions(container, handlers)` — binds data-action buttons (edit/delete/sync)
 - `createModal(html)` — creates dynamic modal overlay, returns `{ overlay, close }`
-- `ICONS` — exported SVG icon strings:
+- `ICONS` — exported SVG icon strings (edit, delete, plus, close, bank, search, filter, info, chevronLeft/Right, play, pause)
   - `edit`, `delete`, `plus`, `close`, `bank`
   - `search`, `filter`, `info`
   - `chevronLeft`, `chevronRight`

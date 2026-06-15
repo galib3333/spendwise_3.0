@@ -282,7 +282,7 @@ async function importEncrypted() {
         replaceAllData(clean);
         toastSuccess('Encrypted backup imported!');
         renderExportPage();
-      } catch(e) {
+      } catch(_e) {
         toastError('Invalid file format');
       }
       window.__resumeAutoLock?.();
@@ -311,7 +311,7 @@ function importJSON() {
         replaceAllData(data);
         toastSuccess('Data imported successfully!');
         renderExportPage();
-      } catch(e) { toastError('Invalid file format'); }
+      } catch(_e) { toastError('Invalid file format'); }
       window.__resumeAutoLock?.();
     };
     reader.readAsText(file);

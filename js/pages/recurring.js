@@ -1,6 +1,6 @@
 // ===== RECURRING PAGE =====
 import { getRecurringList, addRecurring, updateRecurring, deleteRecurring, toggleRecurringActive, getSettings } from '../store.js';
-import { fmt, getCat, EXPENSE_CATS, validateRecurring, uid, today } from '../utils.js';
+import { fmt, getCat, EXPENSE_CATS, validateRecurring, uid, today, parseLocalDate } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastInfo, toastError } from '../toast.js';
 import { openModal, closeModal } from '../modals.js';
@@ -11,8 +11,8 @@ const FREQ_PER_YEAR = { weekly: 52, biweekly: 26, monthly: 12, quarterly: 4, yea
 const FREQ_LABELS = { weekly: 'Weekly', biweekly: 'Bi-Weekly', monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' };
 
 function monthsBetween(a, b) {
-  const da = new Date(a + 'T00:00:00');
-  const db = new Date(b + 'T00:00:00');
+  const da = parseLocalDate(a);
+  const db = parseLocalDate(b);
   return (db.getFullYear() - da.getFullYear()) * 12 + (db.getMonth() - da.getMonth());
 }
 

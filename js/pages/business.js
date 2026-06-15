@@ -5,7 +5,7 @@ import {
   getBusinessCategories, addBusinessCategory, updateBusinessCategory, deleteBusinessCategory,
   getSettings
 } from '../store.js';
-import { fmt, fmtCompact, today, uid, BUSINESS_PAYMENT_LABELS, getMonthStart, getMonthEnd } from '../utils.js';
+import { fmt, fmtCompact, today, uid, BUSINESS_PAYMENT_LABELS, getMonthStart, getMonthEnd, parseLocalDate } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastError, toastWarning } from '../toast.js';
 import { navigate } from '../router.js';
@@ -124,7 +124,7 @@ function requireProfile(container) {
 function getMonthRange(offset = 0) {
   const start = getMonthStart(offset);
   const end = getMonthEnd(offset);
-  const d = new Date(start + 'T00:00:00');
+  const d = parseLocalDate(start);
   return { start, end, date: d };
 }
 

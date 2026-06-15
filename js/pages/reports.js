@@ -1,6 +1,6 @@
 // ===== REPORTS PAGE (Weekly, Monthly, Yearly) =====
 import { getTransactions, getSettings } from '../store.js';
-import { fmt, formatDate, getCat, getWeekDates, PAYMENT_LABELS, getExpenses as _getExpenses, getIncome as _getIncome, sumByCategory as _sumByCategory, getMonthStart, getMonthEnd } from '../utils.js';
+import { fmt, formatDate, getCat, getWeekDates, PAYMENT_LABELS, getExpenses as _getExpenses, getIncome as _getIncome, sumByCategory as _sumByCategory, getMonthStart, getMonthEnd, parseLocalDate } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { drawPieChart, drawBarChart, drawLineChart } from '../charts.js';
 
@@ -37,7 +37,7 @@ export function renderWeekly(container) {
   const catData = sumByCategory(exp);
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const dailyData = weekDates.map(d => exp.filter(t => t.date === d).reduce((s, t) => s + t.amount, 0));
-  const dailyLabels = weekDates.map(d => { const dt = new Date(d + 'T00:00:00'); return dayNames[dt.getDay()]; });
+  const dailyLabels = weekDates.map(d => { const dt = parseLocalDate(d); return dayNames[dt.getDay()]; });
 
   const periodLabel = weeklyOffset === 0 ? 'This Week' : weeklyOffset === -1 ? 'Last Week' : `${Math.abs(weeklyOffset)} week${Math.abs(weeklyOffset) > 1 ? 's' : ''} ${weeklyOffset < 0 ? 'ago' : 'ahead'}`;
 

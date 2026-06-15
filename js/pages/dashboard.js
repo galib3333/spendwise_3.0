@@ -1,6 +1,6 @@
 // ===== DASHBOARD PAGE =====
 import { getTransactions, getBudgets, getSavingsGoals, getRecurringList, getSettings } from '../store.js';
-import { today, fmt, getCat, getExpenses as _getExpenses, getIncome as _getIncome, sumByCategory as _sumByCategory, getMonthStart, getMonthEnd } from '../utils.js';
+import { fmt, getCat, getExpenses as _getExpenses, getIncome as _getIncome, sumByCategory as _sumByCategory, getMonthStart, getMonthEnd } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { drawPieChart, drawBarChart, drawHealthRing } from '../charts.js';
 
@@ -448,15 +448,15 @@ export function renderDashboard(container) {
               <canvas id="dashPie" aria-label="Spending breakdown pie chart"></canvas>
             </div>
             <div style="flex:1;min-width:200px">
-              ${catData.length ? catData.map(c => `
+              ${catData.length ? catData.map(c => { const cat = getCat(c.category); return `
                 <div class="flex flex-center flex-between mb-8">
                   <div class="flex flex-center gap-8">
-                    <div style="width:10px;height:10px;border-radius:50%;background:${getCat(c.category).color}" aria-hidden="true"></div>
-                    <span class="text-sm">${getCat(c.category).icon} ${escapeHTML(getCat(c.category).name)}</span>
+                    <div style="width:10px;height:10px;border-radius:50%;background:${cat.color}" aria-hidden="true"></div>
+                    <span class="text-sm">${cat.icon} ${escapeHTML(cat.name)}</span>
                   </div>
                   <span class="text-sm" style="font-weight:600">${fmt(c.amount, settings.currency)}</span>
                 </div>
-              `).join('') : '<p class="text-muted text-sm">No expenses this month</p>'}
+              `; }).join('') : '<p class="text-muted text-sm">No expenses this month</p>'}
             </div>
           </div>
         </div>

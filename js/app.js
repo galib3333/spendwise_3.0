@@ -3,7 +3,7 @@ import { initStore, getSettings, updateSettings, addTransaction, getTransactions
 import { initRouter, navigate, registerPage } from './router.js';
 import { initModals } from './modals.js';
 import { setChartUtils } from './charts.js';
-import { fmt, fmtShort, EXPENSE_CATS, validateTransaction, uid, today, parseLocalDate, addMonths } from './utils.js';
+import { fmt, fmtShort, EXPENSE_CATS, validateTransaction, uid, today, parseLocalDate } from './utils.js';
 import { applyTheme } from './pages/settings.js';
 import { toastSuccess, toastError, toastWarning } from './toast.js';
 import { initLockScreen, lockApp, resetLockTimer, stopLockTimer } from './lockscreen.js';
@@ -70,7 +70,7 @@ function processRecurring() {
         frequency: r.frequency
       });
 
-      const d = new Date(r.nextDate + 'T00:00:00');
+      const d = parseLocalDate(r.nextDate);
       switch(r.frequency) {
         case 'weekly': d.setDate(d.getDate() + 7); break;
         case 'biweekly': d.setDate(d.getDate() + 14); break;
@@ -367,7 +367,7 @@ function syncOrphanedRecurring() {
     if(hasEntry) return;
 
     const freq = t.frequency || 'monthly';
-    const next = new Date(t.date + 'T00:00:00');
+    const next = parseLocalDate(t.date);
     switch(freq) {
       case 'weekly': next.setDate(next.getDate() + 7); break;
       case 'biweekly': next.setDate(next.getDate() + 14); break;

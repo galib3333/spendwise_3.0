@@ -1,10 +1,10 @@
 // ===== TRANSACTIONS PAGE =====
 import { getTransactions, addTransaction, updateTransaction, deleteTransaction, restoreTransaction, addRecurring, getSettings } from '../store.js';
-import { today, fmt, formatDate, getCat, ALL_CATS, EXPENSE_CATS, INCOME_CATS, PAYMENT_LABELS, validateTransaction, uid } from '../utils.js';
+import { today, fmt, formatDate, getCat, ALL_CATS, EXPENSE_CATS, INCOME_CATS, PAYMENT_LABELS, validateTransaction, uid, parseLocalDate } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastInfo, toastError } from '../toast.js';
 import { openModal, closeModal } from '../modals.js';
-import { renderCard, renderEmptyState, renderCatOptions } from '../helpers.js';
+import { renderCatOptions } from '../helpers.js';
 
 let currentFilter = { search: '', type: 'all', category: 'all', payment: 'all', dateFrom: '', dateTo: '', sort: 'date-desc' };
 let currentPage = 1;
@@ -153,7 +153,7 @@ function openAddTransaction() {
   document.getElementById('txDesc').value = '';
   document.getElementById('txTags').value = '';
   document.getElementById('txRecurring').checked = false;
-  document.getElementById('recurringOptions').classList.add('hidden');
+  document.getElementById('recurringOptions')?.classList.add('hidden');
   setTransType('expense');
   document.getElementById('txSaveBtn').textContent = 'Save Transaction';
   openModal('transactionModal');
@@ -179,15 +179,15 @@ function openEditTransaction(id) {
 }
 
 function saveTransaction() {
-  const amount = parseFloat(document.getElementById('txAmount').value);
-  const date = document.getElementById('txDate').value;
-  const cat = document.getElementById('txCategory').value;
-  const payment = document.getElementById('txPayment').value;
-  const desc = document.getElementById('txDesc').value.trim();
-  const tags = document.getElementById('txTags').value.split(',').map(t => t.trim()).filter(Boolean);
-  const isRecurring = document.getElementById('txRecurring').checked;
-  const freq = document.getElementById('txFreq').value;
-  const id = document.getElementById('txId').value;
+  const amount = parseFloat(document.getElementById('txAmount')?.value);
+  const date = document.getElementById('txDate')?.value;
+  const cat = document.getElementById('txCategory')?.value;
+  const payment = document.getElementById('txPayment')?.value;
+  const desc = document.getElementById('txDesc')?.value.trim() || '';
+  const tags = (document.getElementById('txTags')?.value || '').split(',').map(t => t.trim()).filter(Boolean);
+  const isRecurring = document.getElementById('txRecurring')?.checked;
+  const freq = document.getElementById('txFreq')?.value;
+  const id = document.getElementById('txId')?.value;
   const type = window.__currentTransType || 'expense';
 
   const errors = validateTransaction({ amount, date, category: cat, type, payment });
@@ -202,7 +202,7 @@ function saveTransaction() {
     data.id = uid();
     addTransaction(data);
     if(isRecurring && type === 'expense') {
-      const next = new Date(date + 'T00:00:00');
+      const next = parseLocalDate(date);
       switch(freq) {
         case 'weekly': next.setDate(next.getDate() + 7); break;
         case 'biweekly': next.setDate(next.getDate() + 14); break;

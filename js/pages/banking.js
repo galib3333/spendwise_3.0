@@ -242,10 +242,10 @@ function bindEvents(container, accounts, settings) {
 
   // Save account
   document.getElementById('saveAccountBtn')?.addEventListener('click', () => {
-    const provider = document.getElementById('acctProvider').value;
-    const name = document.getElementById('acctName').value.trim();
-    const accountNumber = document.getElementById('acctNumber').value.trim();
-    const balance = parseFloat(document.getElementById('acctBalance').value) || 0;
+    const provider = document.getElementById('acctProvider')?.value || '';
+    const name = document.getElementById('acctName')?.value.trim() || '';
+    const accountNumber = document.getElementById('acctNumber')?.value.trim() || '';
+    const balance = parseFloat(document.getElementById('acctBalance')?.value) || 0;
 
     if (!name) { toastError('Account name is required'); return; }
 
@@ -395,8 +395,8 @@ function bindEvents(container, accounts, settings) {
 
   // Manual paste parser
   document.getElementById('parsePasteBtn')?.addEventListener('click', () => {
-    const text = document.getElementById('pasteText').value.trim();
-    const accountId = document.getElementById('pasteAccount').value;
+    const text = document.getElementById('pasteText')?.value.trim() || '';
+    const accountId = document.getElementById('pasteAccount')?.value;
     const resultDiv = document.getElementById('pasteResult');
 
     if (!text) { toastError('Paste some text first'); return; }
