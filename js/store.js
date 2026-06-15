@@ -6,6 +6,7 @@ import {
   dbGetAll, dbPutAll, dbPut, dbDelete, dbClear,
   dbGetSetting, dbSetSetting, isIndexedDBAvailable
 } from './db.js';
+import { toastError } from './toast.js';
 
 const STORAGE_PREFIX = 'sw_';
 const listeners = new Map();
@@ -27,6 +28,7 @@ let state = {
 };
 
 let _storageMode = 'localStorage'; // 'indexeddb' | 'localStorage'
+const _dirty = new Set();
 
 // ===== PERSISTENCE (localStorage fallback) =====
 function lsLoad(key, def) {
@@ -102,21 +104,24 @@ export async function initStore() {
 // ===== PERSISTENCE =====
 async function persist() {
   if (_storageMode === 'indexeddb') {
-    await Promise.all([
-      dbPutAll('transactions', state.transactions),
-      dbPutAll('budgets', state.budgets),
-      dbPutAll('savingsGoals', state.savingsGoals),
-      dbPutAll('recurringList', state.recurringList),
-      dbSetSetting('currency', state.settings.currency),
-      dbSetSetting('theme', state.settings.theme),
-      dbSetSetting('dateFormat', state.settings.dateFormat),
-      dbSetSetting('appMode', state.appMode),
-      dbSetSetting('businessProfile', state.businessProfile),
-      dbPutAll('businessTransactions', state.businessTransactions),
-      dbPutAll('businessCategories', state.businessCategories),
-      dbPutAll('bankAccounts', state.bankAccounts),
-      dbPutAll('bankTransactions', state.bankTransactions)
-    ]);
+    const writes = [];
+    if (_dirty.has('transactions'))         writes.push(dbPutAll('transactions', state.transactions));
+    if (_dirty.has('budgets'))              writes.push(dbPutAll('budgets', state.budgets));
+    if (_dirty.has('savingsGoals'))         writes.push(dbPutAll('savingsGoals', state.savingsGoals));
+    if (_dirty.has('recurringList'))        writes.push(dbPutAll('recurringList', state.recurringList));
+    if (_dirty.has('settings')) {
+      writes.push(dbSetSetting('currency', state.settings.currency));
+      writes.push(dbSetSetting('theme', state.settings.theme));
+      writes.push(dbSetSetting('dateFormat', state.settings.dateFormat));
+    }
+    if (_dirty.has('appMode'))              writes.push(dbSetSetting('appMode', state.appMode));
+    if (_dirty.has('businessProfile'))      writes.push(dbSetSetting('businessProfile', state.businessProfile));
+    if (_dirty.has('businessTransactions')) writes.push(dbPutAll('businessTransactions', state.businessTransactions));
+    if (_dirty.has('businessCategories'))   writes.push(dbPutAll('businessCategories', state.businessCategories));
+    if (_dirty.has('bankAccounts'))         writes.push(dbPutAll('bankAccounts', state.bankAccounts));
+    if (_dirty.has('bankTransactions'))     writes.push(dbPutAll('bankTransactions', state.bankTransactions));
+    if (writes.length) await Promise.all(writes);
+    _dirty.clear();
   } else {
     lsSave('transactions', state.transactions);
     lsSave('budgets', state.budgets);
@@ -133,7 +138,6 @@ async function persist() {
 }
 
 function persistSync() {
-  // Synchronous fallback for non-async contexts
   if (_storageMode !== 'indexeddb') {
     lsSave('transactions', state.transactions);
     lsSave('budgets', state.budgets);
@@ -147,8 +151,10 @@ function persistSync() {
     lsSave('bankAccounts', state.bankAccounts);
     lsSave('bankTransactions', state.bankTransactions);
   } else {
-    // Fire-and-forget async persist
-    persist();
+    persist().catch(err => {
+      console.error('Persist failed:', err);
+      toastError('Failed to save data');
+    });
   }
 }
 
@@ -181,15 +187,15 @@ export function getBankTransactions() { return [...state.bankTransactions]; }
 // ===== GENERIC CRUD HELPERS =====
 function crudOps(key, stateKey) {
   return {
-    add(data) { state[stateKey].push(data); persistSync(); notify(stateKey); },
+    add(data) { state[stateKey].push(data); _dirty.add(stateKey); persistSync(); notify(stateKey); },
     update(id, data) {
       const idx = state[stateKey].findIndex(x => x.id === id);
-      if (idx >= 0) { state[stateKey][idx] = { ...state[stateKey][idx], ...data }; persistSync(); notify(stateKey); return true; }
+      if (idx >= 0) { state[stateKey][idx] = { ...state[stateKey][idx], ...data }; _dirty.add(stateKey); persistSync(); notify(stateKey); return true; }
       return false;
     },
     remove(id) {
       const idx = state[stateKey].findIndex(x => x.id === id);
-      if (idx >= 0) { const removed = state[stateKey].splice(idx, 1)[0]; persistSync(); notify(stateKey); return removed; }
+      if (idx >= 0) { const removed = state[stateKey].splice(idx, 1)[0]; _dirty.add(stateKey); persistSync(); notify(stateKey); return removed; }
       return null;
     }
   };
@@ -227,29 +233,33 @@ export function deleteRecurring(id) { return recurringList.remove(id); }
 
 export function toggleRecurringActive(id) {
   const r = state.recurringList.find(x => x.id === id);
-  if (r) { r.active = !r.active; persistSync(); notify('recurringList'); }
+  if (r) { r.active = !r.active; _dirty.add('recurringList'); persistSync(); notify('recurringList'); }
 }
 
 // ===== SETTINGS =====
 export function updateSettings(key, value) {
   state.settings[key] = value;
+  _dirty.add('settings');
   persistSync(); notify('settings');
 }
 
 // ===== APP MODE =====
 export function setAppMode(mode) {
   state.appMode = mode;
+  _dirty.add('appMode');
   persistSync(); notify('appMode');
 }
 
 // ===== BUSINESS PROFILE =====
 export function setBusinessProfile(data) {
   state.businessProfile = { ...data, id: 'profile' };
+  _dirty.add('businessProfile');
   persistSync(); notify('businessProfile');
 }
 
 export function clearBusinessProfile() {
   state.businessProfile = null;
+  _dirty.add('businessProfile');
   persistSync(); notify('businessProfile');
 }
 
@@ -270,6 +280,7 @@ export function deleteBankAccount(id) {
   const removed = bankAccounts.remove(id);
   if (removed) {
     state.bankTransactions = state.bankTransactions.filter(t => t.bankAccountId !== id);
+    _dirty.add('bankTransactions');
     persistSync(); notify('bankTransactions');
   }
   return removed;
@@ -279,6 +290,7 @@ export function deleteBankAccount(id) {
 export function addBankTransaction(data) { bankTransactions.add(data); }
 export function addBulkBankTransactions(items) {
   state.bankTransactions.push(...items);
+  _dirty.add('bankTransactions');
   persistSync(); notify('bankTransactions');
 }
 export function deleteBankTransaction(id) { return bankTransactions.remove(id); }
@@ -290,6 +302,7 @@ export function getBankTransactionsForAccount(accountId) {
 // ===== BULK OPERATIONS =====
 export function addBulkTransactions(items) {
   state.transactions.push(...items);
+  _dirty.add('transactions');
   persistSync(); notify('transactions');
 }
 
@@ -303,6 +316,7 @@ export function replaceAllData(data) {
   if (data.businessCategories) state.businessCategories = data.businessCategories;
   if (data.bankAccounts) state.bankAccounts = data.bankAccounts;
   if (data.bankTransactions) state.bankTransactions = data.bankTransactions;
+  for (const k of ['transactions','budgets','savingsGoals','recurringList','businessProfile','businessTransactions','businessCategories','bankAccounts','bankTransactions']) _dirty.add(k);
   persistSync();
   notify('transactions'); notify('budgets'); notify('savingsGoals'); notify('recurringList');
   notify('businessProfile'); notify('businessTransactions'); notify('businessCategories');
@@ -319,6 +333,7 @@ export function clearAllData() {
   state.businessCategories = [];
   state.bankAccounts = [];
   state.bankTransactions = [];
+  for (const k of ['transactions','budgets','savingsGoals','recurringList','businessProfile','businessTransactions','businessCategories','bankAccounts','bankTransactions']) _dirty.add(k);
   persistSync();
   // Clear security data
   localStorage.removeItem('sw_salt');

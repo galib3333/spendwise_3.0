@@ -2,6 +2,7 @@
 import { getSettings, updateSettings, clearAllData } from '../store.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess } from '../toast.js';
+import { confirmModal } from '../helpers.js';
 import { hasPIN, isLockEnabled, getLockTimeout, setLockTimeout, getPrivacyPolicy } from '../security.js';
 import { changePIN, disableLock, showLockScreen } from '../lockscreen.js';
 import { renderGmailStatus } from '../banking/gmail-auth.js';
@@ -175,8 +176,8 @@ export function renderSettings(container) {
   });
 
   // Remove PIN
-  document.getElementById('removePinBtn')?.addEventListener('click', () => {
-    if(confirm('Remove PIN lock? Your data will no longer be protected.')) {
+  document.getElementById('removePinBtn')?.addEventListener('click', async () => {
+    if (await confirmModal('Remove PIN lock? Your data will no longer be protected.', { confirmText: 'Remove' })) {
       disableLock();
       renderSettings(container);
       toastSuccess('PIN removed');
@@ -212,8 +213,8 @@ export function renderSettings(container) {
   });
 
   // Reset data
-  document.getElementById('resetDataBtn')?.addEventListener('click', () => {
-    if(confirm('Delete ALL data? This cannot be undone.')) {
+  document.getElementById('resetDataBtn')?.addEventListener('click', async () => {
+    if (await confirmModal('Delete ALL data? This cannot be undone.', { confirmText: 'Delete All' })) {
       clearAllData();
       toastSuccess('All data cleared');
       applyTheme();

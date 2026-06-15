@@ -136,7 +136,8 @@ export async function dbGetAll(storeName) {
   if (!useIndexedDB || !db) return null;
   try {
     return await idbGetAll(storeName);
-  } catch {
+  } catch (err) {
+    console.error(`dbGetAll(${storeName}) failed:`, err);
     return null;
   }
 }
@@ -146,7 +147,8 @@ export async function dbPut(storeName, data) {
   try {
     await idbPut(storeName, data);
     return true;
-  } catch {
+  } catch (err) {
+    console.error(`dbPut(${storeName}) failed:`, err);
     return false;
   }
 }
@@ -156,7 +158,8 @@ export async function dbPutAll(storeName, items) {
   try {
     await idbPutAll(storeName, items);
     return true;
-  } catch {
+  } catch (err) {
+    console.error(`dbPutAll(${storeName}) failed:`, err);
     return false;
   }
 }
@@ -166,7 +169,8 @@ export async function dbDelete(storeName, id) {
   try {
     await idbDelete(storeName, id);
     return true;
-  } catch {
+  } catch (err) {
+    console.error(`dbDelete(${storeName}) failed:`, err);
     return false;
   }
 }
@@ -176,7 +180,8 @@ export async function dbClear(storeName) {
   try {
     await idbClear(storeName);
     return true;
-  } catch {
+  } catch (err) {
+    console.error(`dbClear(${storeName}) failed:`, err);
     return false;
   }
 }
@@ -185,7 +190,8 @@ export async function dbGetSetting(key) {
   if (!useIndexedDB || !db) return undefined;
   try {
     return await idbGetSetting(key);
-  } catch {
+  } catch (err) {
+    console.error(`dbGetSetting(${key}) failed:`, err);
     return undefined;
   }
 }
@@ -195,7 +201,8 @@ export async function dbSetSetting(key, value) {
   try {
     await idbSetSetting(key, value);
     return true;
-  } catch {
+  } catch (err) {
+    console.error(`dbSetSetting(${key}) failed:`, err);
     return false;
   }
 }

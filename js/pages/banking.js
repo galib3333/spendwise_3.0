@@ -7,6 +7,7 @@ import {
 import { uid, fmt } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastError, toastWarning } from '../toast.js';
+import { confirmModal } from '../helpers.js';
 import { navigate } from '../router.js';
 import { isGmailConnected, initGmailAuth, requestGmailAccess, disconnectGmail, renderGmailStatus, onConnectionChange } from '../banking/gmail-auth.js';
 import { fetchAndParseEmails, fetchLatestBalance } from '../banking/gmail-fetcher.js';
@@ -301,8 +302,8 @@ function bindEvents(container, accounts, settings) {
     if (ready) requestGmailAccess();
   });
 
-  document.getElementById('disconnectGmailBtn')?.addEventListener('click', () => {
-    if (confirm('Disconnect Gmail? Auto-import will stop.')) {
+  document.getElementById('disconnectGmailBtn')?.addEventListener('click', async () => {
+    if (await confirmModal('Disconnect Gmail? Auto-import will stop.', { confirmText: 'Disconnect' })) {
       disconnectGmail();
       toastSuccess('Gmail disconnected');
       renderBanking(container);
@@ -383,9 +384,9 @@ function bindEvents(container, accounts, settings) {
 
   // Delete account
   container.querySelectorAll('[data-delete-account]').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const accountId = btn.dataset.deleteAccount;
-      if (confirm('Delete this account and all its transactions?')) {
+      if (await confirmModal('Delete this account and all its transactions?')) {
         deleteBankAccount(accountId);
         toastSuccess('Account deleted');
         renderBanking(container);
