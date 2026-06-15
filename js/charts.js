@@ -80,6 +80,7 @@ export function drawPieChart(canvasId, data, total, currency) {
 
   if(!data.length) { drawNoData(ctx, w, h); return; }
   if(total === 0) { drawNoData(ctx, w, h); return; }
+  const cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2 - 20;
   const duration = 1600;
 
   function drawSlice(progress) {
