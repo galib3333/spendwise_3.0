@@ -174,7 +174,7 @@ function renderAccountCard(account, allTxns, settings) {
           <div style="font-size:1.1rem;font-weight:600;color:var(--text1)">
             ${formatBalance(balance, settings.currency)}
           </div>
-          ${account.lastSynced ? `<p class="text-sm text-muted" style="margin:2px 0 0">Synced ${timeAgo(account.lastSynced)}</p>` : ''}
+          ${account.lastSynced ? `<p class="text-sm text-muted" style="margin:2px 0 0">Synced ${escapeHTML(timeAgo(account.lastSynced))}</p>` : ''}
         </div>
       </div>
       ${recent.length > 0 ? `
@@ -190,8 +190,8 @@ function renderAccountCard(account, allTxns, settings) {
         </div>
       ` : '<p class="text-sm text-muted" style="margin:0;text-align:center;padding:8px 0">No transactions yet</p>'}
       <div class="flex gap-8" style="margin-top:8px;justify-content:flex-end">
-        <button class="btn btn-ghost btn-sm" data-sync-account="${account.id}">Sync</button>
-        <button class="btn btn-ghost btn-sm" style="color:var(--red)" data-delete-account="${account.id}">Delete</button>
+        <button class="btn btn-ghost btn-sm" data-sync-account="${escapeHTML(account.id)}">Sync</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red)" data-delete-account="${escapeHTML(account.id)}">Delete</button>
       </div>
     </div>
   `;
@@ -208,14 +208,14 @@ function renderBankTxRow(tx, accounts, settings) {
         <span style="font-size:1.1rem">${info.icon}</span>
         <div>
           <div class="text-sm" style="font-weight:500">${escapeHTML(tx.counterparty || tx.type)}</div>
-          <div class="text-sm text-muted">${tx.date} ${account ? `· ${escapeHTML(account.name)}` : ''}</div>
+          <div class="text-sm text-muted">${escapeHTML(tx.date)} ${account ? `· ${escapeHTML(account.name)}` : ''}</div>
         </div>
       </div>
       <div style="text-align:right">
         <div style="font-weight:500;color:${isOut ? 'var(--red)' : 'var(--green)'}">
           ${isOut ? '-' : '+'}${settings.currency}${tx.amount.toLocaleString('en-IN')}
         </div>
-        ${tx.fee ? `<div class="text-sm text-muted">Fee: ${settings.currency}${tx.fee}</div>` : ''}
+        ${tx.fee ? `<div class="text-sm text-muted">Fee: ${settings.currency}${escapeHTML(String(tx.fee))}</div>` : ''}
         ${tx.trxId ? `<div class="text-sm text-muted" style="font-size:0.65rem">${escapeHTML(tx.trxId)}</div>` : ''}
       </div>
     </div>

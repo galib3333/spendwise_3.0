@@ -6,6 +6,7 @@ import {
   startLockTimer, stopLockTimer, resetLockTimer, getLockTimeout, setLockTimeout,
   getPrivacyPolicy
 } from './security.js';
+import { escapeHTML } from './sanitize.js';
 
 const MAX_PIN = 8;
 const MIN_PIN = 4;
@@ -331,7 +332,7 @@ function showPrivacyModal() {
   overlay.className = 'modal-overlay show';
   overlay.innerHTML = `<div class="modal" style="max-width:600px;max-height:80vh;overflow-y:auto">
     <h3>Privacy Policy</h3>
-    <div style="color:var(--text2);font-size:0.8rem;line-height:1.6;white-space:pre-wrap">${policy}</div>
+    <div style="color:var(--text2);font-size:0.8rem;line-height:1.6;white-space:pre-wrap">${escapeHTML(policy)}</div>
     <div class="modal-actions">
       <button type="button" class="btn btn-primary" id="privacyCloseBtn">Close</button>
     </div>

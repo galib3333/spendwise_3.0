@@ -38,7 +38,6 @@ export function initGmailAuth(clientId) {
       client_id: clientId,
       scope: GMAIL_SCOPE,
       callback: (tokenResponse) => {
-        console.debug('[SpendWise] Gmail OAuth callback fired:', tokenResponse.error || 'success');
         if (tokenResponse.error) {
           console.error('Gmail auth error:', tokenResponse.error);
           notifyChange(false);
@@ -50,7 +49,7 @@ export function initGmailAuth(clientId) {
         notifyChange(true);
       },
       error_callback: (err) => {
-        console.error('[SpendWise] Gmail auth error_callback:', err);
+        console.error('[SpendWise] Gmail auth failed');
         notifyChange(false);
       },
     });
@@ -64,7 +63,6 @@ export function requestGmailAccess() {
     console.error('Gmail auth not initialized. Call initGmailAuth first.');
     return false;
   }
-  console.debug('[SpendWise] Requesting Gmail access...');
   _tokenClient.requestAccessToken({ prompt: 'consent' });
   return true;
 }

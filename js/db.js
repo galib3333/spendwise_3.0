@@ -75,14 +75,26 @@ function idbPut(storeName, data) {
 function idbPutAll(storeName, items) {
   return new Promise((resolve, reject) => {
     if (!db) return resolve();
-    const tx = db.transaction(storeName, 'readwrite');
-    const store = tx.objectStore(storeName);
-    store.clear();
-    for (const item of items) {
-      store.put(item);
+    try {
+      const tx = db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      store.clear();
+      for (const item of items) {
+        store.put(item);
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => {
+        console.error(`idbPutAll(${storeName}) transaction error:`, tx.error);
+        reject(tx.error);
+      };
+      tx.onabort = () => {
+        console.error(`idbPutAll(${storeName}) transaction aborted:`, tx.error);
+        reject(tx.error || new Error('Transaction aborted'));
+      };
+    } catch (e) {
+      console.error(`idbPutAll(${storeName}) failed:`, e);
+      reject(e);
     }
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
   });
 }
 

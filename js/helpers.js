@@ -7,7 +7,7 @@ import { escapeHTML } from './sanitize.js';
 // ===== RENDER HELPERS =====
 
 export function renderCard(label, value, colorClass = '') {
-  return `<div class="card"><div class="card-label">${label}</div><div class="card-value ${colorClass}">${value}</div></div>`;
+  return `<div class="card"><div class="card-label">${escapeHTML(label)}</div><div class="card-value ${colorClass}">${escapeHTML(String(value))}</div></div>`;
 }
 
 export function renderEmptyState(message) {
@@ -63,10 +63,10 @@ export function confirmModal(message, { confirmText = 'Delete', danger = true } 
   return new Promise(resolve => {
     const { overlay, close } = createModal(`
       <h3>Confirm</h3>
-      <p class="text-sm text-muted mb-16">${message}</p>
+      <p class="text-sm text-muted mb-16">${escapeHTML(message)}</p>
       <div class="modal-actions">
         <button class="btn btn-secondary" data-close-modal>Cancel</button>
-        <button class="btn" id="_cmConfirm" style="${danger ? 'background:var(--red);color:#fff' : ''}">${confirmText}</button>
+        <button class="btn" id="_cmConfirm" style="${danger ? 'background:var(--red);color:#fff' : ''}">${escapeHTML(confirmText)}</button>
       </div>
     `);
     overlay.querySelector('#_cmConfirm').addEventListener('click', () => { close(); resolve(true); });
