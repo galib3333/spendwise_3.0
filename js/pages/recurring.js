@@ -1,5 +1,5 @@
 // ===== RECURRING PAGE =====
-import { getRecurringList, addRecurring, updateRecurring, deleteRecurring, toggleRecurringActive, getSettings } from '../store.js';
+import { getRecurringList, addRecurring, updateRecurring, deleteRecurring, toggleRecurringActive, getSettings, getLoans } from '../store.js';
 import { fmt, getCat, EXPENSE_CATS, validateRecurring, uid, today, parseLocalDate } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastInfo, toastError } from '../toast.js';
@@ -116,6 +116,8 @@ export function renderRecurring(container) {
   const settings = getSettings();
   const recurringList = getRecurringList();
   const active = recurringList.filter(r => r.active);
+  const loans = getLoans();
+  const loanMap = Object.fromEntries(loans.map(l => [l.id, l]));
 
   const monthlyTotal = active.reduce((s, r) => s + r.amount * (FREQ_MULT[r.frequency] || 1), 0);
   const yearlyTotal = active.reduce((s, r) => s + remainingCost(r), 0);
@@ -139,12 +141,16 @@ export function renderRecurring(container) {
           const cat = getCat(r.category);
           const rm = remainingMonths(r);
           const endDateLabel = r.endDate ? ` · Ends ${r.endDate}` : ' · Ongoing';
+          const linkedLoan = r.loanId ? loanMap[r.loanId] : null;
+          const loanBadge = linkedLoan
+            ? `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:0.6rem;font-weight:600;background:var(--accent)22;color:var(--accent);margin-left:4px">${linkedLoan.type === 'lent' ? '📤' : '📥'} ${escapeHTML(linkedLoan.person)}</span>`
+            : '';
           return `
             <div class="recurring-row flex flex-center flex-between" style="padding:14px 0;border-bottom:1px solid var(--border)">
               <div class="flex flex-center gap-12">
                 <div class="transaction-icon" style="background:${cat.color}22;color:${cat.color}" aria-hidden="true">${cat.icon}</div>
                 <div>
-                  <div style="font-weight:600">${escapeHTML(r.description)}</div>
+                  <div style="font-weight:600">${escapeHTML(r.description)}${loanBadge}</div>
                   <div class="text-sm text-muted">${escapeHTML(cat.name)} · ${escapeHTML(FREQ_LABELS[r.frequency] || r.frequency)}${endDateLabel}</div>
                 </div>
               </div>

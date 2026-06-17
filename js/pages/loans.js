@@ -1,5 +1,5 @@
 // ===== LOANS PAGE =====
-import { getLoans, addLoan, updateLoan, deleteLoan, getSettings, addTransaction, addRecurring, getRecurringList } from '../store.js';
+import { getLoans, addLoan, updateLoan, deleteLoan, getSettings, addTransaction, addRecurring, updateRecurring, deleteRecurring, getRecurringList } from '../store.js';
 import { uid, today, parseLocalDate, toDateStr, fmt } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastError } from '../toast.js';
@@ -429,33 +429,84 @@ function bindEvents(container, loans, currency) {
       const existing = loans.find(l => l.id === editId);
       data.payments = existing?.payments || [];
       data.createdAt = existing?.createdAt;
+      data.transactionId = existing?.transactionId || null;
       loanId = editId;
       updateLoan(editId, data);
-      toastSuccess('Loan updated');
+
+      const existingRecurring = getRecurringList().find(r => r.loanId === loanId);
+      if (frequency) {
+        const installmentAmt = installment || amount / 12;
+        const recurringData = {
+          amount: installmentAmt,
+          description: `${type === 'lent' ? 'Loan received' : 'Loan payment'} - ${displayName}`,
+          frequency,
+          category: 'other',
+          nextDate: advanceDate(startDate, frequency),
+          endDate: dueDate || null,
+        };
+        if (existingRecurring) {
+          updateRecurring(existingRecurring.id, recurringData);
+        } else {
+          addRecurring({
+            id: uid(),
+            ...recurringData,
+            startDate,
+            active: true,
+            loanId
+          });
+        }
+        toastSuccess('Loan updated & recurring scheduled');
+      } else if (existingRecurring) {
+        deleteRecurring(existingRecurring.id);
+        toastSuccess('Loan updated, recurring removed');
+      } else {
+        toastSuccess('Loan updated');
+      }
     } else {
       loanId = uid();
       data.id = loanId;
       data.createdAt = new Date().toISOString();
-      addLoan(data);
-      toastSuccess('Loan added');
-    }
 
-    if (frequency && !editId) {
-      const installmentAmt = installment || amount / 12;
-      const nextDate = advanceDate(startDate, frequency);
-      addRecurring({
-        id: uid(),
-        amount: installmentAmt,
-        description: `${type === 'lent' ? 'Loan received' : 'Loan payment'} - ${displayName}`,
-        frequency,
+      const txnType = type === 'lent' ? 'expense' : 'income';
+      const txnDesc = type === 'lent'
+        ? `Lent to ${displayName}`
+        : `Borrowed from ${displayName}`;
+      const txnId = uid();
+      data.transactionId = txnId;
+
+      addLoan(data);
+
+      addTransaction({
+        id: txnId,
+        type: txnType,
+        amount,
+        date: startDate,
         category: 'other',
-        startDate,
-        nextDate,
-        endDate: dueDate || null,
-        active: true,
-        loanId
+        payment: source === 'person' ? 'cash' : source,
+        description: notes ? `${txnDesc} - ${notes}` : txnDesc,
+        tags: ['loan'],
+        recurring: false,
+        frequency: null
       });
-      toastSuccess('Recurring payment scheduled');
+
+      if (frequency) {
+        const installmentAmt = installment || amount / 12;
+        addRecurring({
+          id: uid(),
+          amount: installmentAmt,
+          description: `${type === 'lent' ? 'Loan received' : 'Loan payment'} - ${displayName}`,
+          frequency,
+          category: 'other',
+          startDate,
+          nextDate: advanceDate(startDate, frequency),
+          endDate: dueDate || null,
+          active: true,
+          loanId
+        });
+        toastSuccess('Loan & transaction added, recurring scheduled');
+      } else {
+        toastSuccess('Loan & transaction added');
+      }
     }
 
     document.getElementById('loanModal').classList.remove('show');
