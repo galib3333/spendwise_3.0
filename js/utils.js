@@ -149,15 +149,6 @@ export function parseCSVSimple(text) {
 }
 
 // Bank statement format detection
-const BANK_PATTERNS = [
-  { name: 'Generic (Date, Description, Amount)', date: 0, desc: 1, amount: 2, type: null },
-  { name: 'Generic (Date, Description, Debit, Credit)', date: 0, desc: 1, debit: 2, credit: 3, type: 'split' },
-  { name: 'HDFC Bank', date: 0, desc: 2, amount: 3, type: null, dateFormats: ['DD/MM/YYYY', 'DD-MM-YYYY'] },
-  { name: 'SBI Bank', date: 0, desc: 3, amount: 5, type: 'split', debit: 4, credit: 5, dateFormats: ['DD/MM/YYYY'] },
-  { name: 'ICICI Bank', date: 0, desc: 2, amount: 4, type: null, dateFormats: ['DD/MM/YY'] },
-  { name: 'Axis Bank', date: 0, desc: 2, debit: 3, credit: 4, type: 'split', dateFormats: ['DD-MM-YYYY'] },
-];
-
 const HEADER_KEYWORDS = {
   date: ['date', 'txn date', 'transaction date', 'posted date', 'value date', 'trans date'],
   description: ['description', 'narration', 'particulars', 'details', 'memo', 'payee', 'merchant', 'transaction'],

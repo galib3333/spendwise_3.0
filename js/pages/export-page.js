@@ -169,7 +169,7 @@ function exportMonthlyReport() {
   csv += `Total Expenses,${total.toFixed(2)}\n`;
   csv += `Total Income,${inc.reduce((s, t) => s + t.amount, 0).toFixed(2)}\n\n`;
   csv += 'Category,Amount,Percentage\n';
-  catData.forEach(c => { csv += `"${getCat(c.category).name}",${c.amount.toFixed(2)},${(c.amount / total * 100).toFixed(1)}%\n`; });
+  catData.forEach(c => { csv += `"${getCat(c.category).name}",${c.amount.toFixed(2)},${total > 0 ? (c.amount / total * 100).toFixed(1) : '0.0'}%\n`; });
   csv += '\nTransactions\nDate,Type,Category,Amount,Description\n';
   exp.concat(inc).sort((a, b) => a.date.localeCompare(b.date)).forEach(t => {
     csv += `${t.date},${t.type},"${getCat(t.category).name}",${t.amount},"${escapeCSV(t.description || '')}"\n`;

@@ -10,6 +10,19 @@ let currentFilter = { search: '', type: 'all', category: 'all', payment: 'all', 
 let currentPage = 1;
 const PAGE_SIZE = 50;
 
+let _txSaveBound = false;
+function bindTxModalOnce() {
+  if(_txSaveBound) return;
+  _txSaveBound = true;
+  document.getElementById('txSaveBtn')?.addEventListener('click', saveTransaction);
+  document.querySelectorAll('#typeTabs .tab').forEach(tab => {
+    tab.addEventListener('click', () => setTransType(tab.dataset.type));
+  });
+  document.getElementById('txRecurring')?.addEventListener('change', e => {
+    document.getElementById('recurringOptions')?.classList.toggle('hidden', !e.target.checked);
+  });
+}
+
 function getFiltered() {
   let filtered = [...getTransactions()];
   const f = currentFilter;
@@ -344,17 +357,7 @@ export function renderTransactions(container) {
   document.getElementById('filterDateTo')?.addEventListener('change', e => { currentFilter.dateTo = e.target.value; currentPage = 1; renderTable(); });
   document.getElementById('toggleFiltersBtn')?.addEventListener('click', toggleFilters);
   document.getElementById('addTransactionBtn')?.addEventListener('click', openAddTransaction);
-  document.getElementById('txSaveBtn')?.addEventListener('click', saveTransaction);
-
-  // Type tabs
-  document.querySelectorAll('#typeTabs .tab').forEach(tab => {
-    tab.addEventListener('click', () => setTransType(tab.dataset.type));
-  });
-
-  // Recurring toggle
-  document.getElementById('txRecurring')?.addEventListener('change', e => {
-    document.getElementById('recurringOptions').classList.toggle('hidden', !e.target.checked);
-  });
+  bindTxModalOnce();
 
   renderTable();
 }

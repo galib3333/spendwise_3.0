@@ -1,8 +1,8 @@
 // ===== GMAIL FETCHER =====
-// Fetches and parses bKash/EBL emails via Gmail API
+// Fetches and parses bKash/EBL/Nagad emails via Gmail API
 
 import { getAccessToken, isGmailConnected } from './gmail-auth.js';
-import { parseEmailAuto, detectProvider } from './email-parser.js';
+import { parseEmailAuto } from './email-parser.js';
 import './bkb-adapter.js';
 import './ebl-adapter.js';
 import './nagad-adapter.js';

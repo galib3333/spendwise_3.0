@@ -3,8 +3,7 @@ import { getLoans, addLoan, updateLoan, deleteLoan, getSettings, addTransaction,
 import { uid, today, parseLocalDate, toDateStr, fmt } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastError } from '../toast.js';
-import { confirmModal, renderCard } from '../helpers.js';
-import { ICONS } from '../helpers.js';
+import { confirmModal, renderCard, ICONS } from '../helpers.js';
 
 let _container = null;
 
@@ -318,8 +317,8 @@ function renderLoanList(loans, currency) {
 
         <div class="flex gap-8" style="margin-top:8px;justify-content:flex-end">
           ${status !== 'settled' ? `<button class="btn btn-ghost btn-sm" data-record-payment="${escapeHTML(loan.id)}" style="color:var(--green)">Record Payment</button>` : ''}
-          <button class="btn btn-ghost btn-sm" data-edit-loan="${escapeHTML(loan.id)}">${ICONS.edit}</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--red)" data-delete-loan="${escapeHTML(loan.id)}">${ICONS.delete}</button>
+          <button class="btn btn-ghost btn-sm" data-edit-loan="${escapeHTML(loan.id)}">Edit</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red)" data-delete-loan="${escapeHTML(loan.id)}">Delete</button>
         </div>
       </div>
     `;
@@ -568,6 +567,7 @@ function bindEvents(container, loans, currency) {
 function toggleSourceFields(source) {
   const personFields = document.getElementById('personFields');
   const institutionFields = document.getElementById('institutionFields');
+  if (!personFields || !institutionFields) return;
   if (source === 'person') {
     personFields.style.display = '';
     institutionFields.style.display = 'none';

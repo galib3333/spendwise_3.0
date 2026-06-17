@@ -3,7 +3,7 @@
 
 import {
   initDB, migrateFromLocalStorage,
-  dbGetAll, dbPutAll, dbPut, dbDelete, dbClear,
+  dbGetAll, dbPutAll, dbClear,
   dbGetSetting, dbSetSetting, isIndexedDBAvailable
 } from './db.js';
 import { toastError } from './toast.js';
@@ -350,7 +350,9 @@ export function clearAllData() {
   state.bankAccounts = [];
   state.bankTransactions = [];
   state.loans = [];
-  for (const k of ['transactions','budgets','savingsGoals','recurringList','businessProfile','businessTransactions','businessCategories','bankAccounts','bankTransactions','loans']) _dirty.add(k);
+  state.settings = { currency: '৳', theme: 'dark', dateFormat: 'YYYY-MM-DD' };
+  state.appMode = 'personal';
+  for (const k of ['transactions','budgets','savingsGoals','recurringList','businessProfile','businessTransactions','businessCategories','bankAccounts','bankTransactions','loans','settings','appMode']) _dirty.add(k);
   persistSync();
   // Clear security data
   localStorage.removeItem('sw_salt');

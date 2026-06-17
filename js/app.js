@@ -311,6 +311,36 @@ const BUSINESS_NAV = `
   </div>
 `;
 
+function initCollapsibleSections(nav, mode) {
+  const STORAGE_KEY = `sw_nav_collapsed_${mode}`;
+  let collapsed = {};
+  try { collapsed = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch {}
+
+  function applyCollapse() {
+    nav.querySelectorAll('.nav-section').forEach(section => {
+      const label = section.textContent.trim();
+      const isCollapsed = !!collapsed[label];
+      section.classList.toggle('collapsed', isCollapsed);
+      let next = section.nextElementSibling;
+      while (next && !next.classList.contains('nav-section')) {
+        next.classList.toggle('section-hidden', isCollapsed);
+        next = next.nextElementSibling;
+      }
+    });
+  }
+
+  nav.querySelectorAll('.nav-section').forEach(section => {
+    section.addEventListener('click', () => {
+      const label = section.textContent.trim();
+      collapsed[label] = !collapsed[label];
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(collapsed)); } catch {}
+      applyCollapse();
+    });
+  });
+
+  applyCollapse();
+}
+
 function setupModeToggle() {
   const modeToggle = document.getElementById('modeToggle');
   const nav = document.getElementById('mainNav');
@@ -346,6 +376,7 @@ function setupModeToggle() {
         }
       });
     });
+    initCollapsibleSections(nav, mode);
   }
 }
 

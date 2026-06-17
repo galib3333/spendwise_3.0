@@ -44,7 +44,7 @@ function restoreClose() {
 
 export function initGmailAuth(clientId) {
   return new Promise((resolve) => {
-    if (!window.google || !window.google.accounts) {
+    if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
       console.warn('[SpendWise] Google Identity Services not loaded. Check if the script tag is in index.html.');
       resolve(false);
       return;

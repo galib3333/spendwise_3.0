@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  uid, fmt, today, parseCSVSimple,
+  uid, parseCSVSimple,
   validateTransaction, validateRecurring,
   sanitizeImportData, EXPENSE_CATS
 } from '../js/utils.js';
@@ -8,7 +8,7 @@ import {
   initStore, addTransaction, getTransactions, deleteTransaction,
   addRecurring, getRecurringList, updateRecurring, deleteRecurring,
   toggleRecurringActive, addBulkTransactions, replaceAllData,
-  clearAllData, getSettings
+  clearAllData
 } from '../js/store.js';
 
 // ===== HELPERS =====
@@ -541,7 +541,7 @@ describe('Heavy Traffic - Edge Cases', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('deduplicates recurring by addRecurring multiple times', () => {
+  it('allows duplicate recurring items with different IDs', () => {
     const item = makeRecurring(0);
     addRecurring(item);
     addRecurring({ ...item, id: uid() });

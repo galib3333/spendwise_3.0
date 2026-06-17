@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   uid, fmt, fmtShort, today, formatDate,
   getCat, getWeekDates, escapeCSV, parseCSVSimple,
-  detectBankFormat, mapCSVRow,
   validateTransaction, validateBudget, validateGoal, validateRecurring,
   sanitizeImportData, EXPENSE_CATS, INCOME_CATS, ALL_CATS, PAYMENT_LABELS
 } from '../js/utils.js';
