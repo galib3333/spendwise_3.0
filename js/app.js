@@ -58,7 +58,17 @@ function processRecurring() {
     if(r.nextDate <= now) {
       if(r.endDate && r.nextDate > r.endDate) return;
 
-      const txnType = 'expense';
+      let txnType = 'expense';
+      let txnDescription = r.description + ' (auto)';
+      if (r.loanId) {
+        const loan = loans.find(l => l.id === r.loanId);
+        if (loan) {
+          txnType = loan.type === 'lent' ? 'income' : 'expense';
+          txnDescription = loan.type === 'lent'
+            ? `Loan repayment from ${loan.person || 'someone'} (auto)`
+            : `Loan payment to ${loan.person || 'someone'} (auto)`;
+        }
+      }
       newTransactions.push({
         id: uid(),
         type: txnType,
@@ -66,7 +76,7 @@ function processRecurring() {
         date: r.nextDate,
         category: r.category,
         payment: 'auto',
-        description: r.description + ' (auto)',
+        description: txnDescription,
         tags: r.loanId ? ['recurring', 'loan'] : ['recurring'],
         recurring: true,
         frequency: r.frequency

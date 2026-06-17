@@ -1,5 +1,5 @@
 // ===== DASHBOARD PAGE =====
-import { getTransactions, getBudgets, getSavingsGoals, getRecurringList, getSettings } from '../store.js';
+import { getTransactions, getBudgets, getSavingsGoals, getRecurringList, getSettings, getLoans } from '../store.js';
 import { fmt, today, getCat, getExpenses as _getExpenses, getIncome as _getIncome, sumByCategory as _sumByCategory, getMonthStart, getMonthEnd } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { drawPieChart, drawBarChart, drawHealthRing } from '../charts.js';
@@ -254,6 +254,20 @@ function getPrompts(monthStart, monthEnd) {
     prompts.push({ icon: '💸', bg: 'var(--accent)', title: 'No Activity', text: `No expenses logged this month yet — ${daysInMonth - dayOfMonth} days left` });
   }
 
+  const loans = getLoans();
+  loans.forEach(l => {
+    if (l.status === 'settled') return;
+    const remaining = l.amount - l.paid;
+    const pct = l.amount > 0 ? (l.paid / l.amount) * 100 : 0;
+    const dueDate = l.dueDate ? new Date(l.dueDate) : null;
+    const nowMs = Date.now();
+    if (dueDate && dueDate.getTime() < nowMs) {
+      prompts.push({ icon: '⚠️', bg: 'var(--red)', title: 'Loan Overdue', text: `${l.person} — ${fmt(remaining, settings.currency)} still owed (was due ${l.dueDate})` });
+    } else if (pct >= 80 && pct < 100) {
+      prompts.push({ icon: '✅', bg: 'var(--green)', title: 'Loan Almost Paid', text: `${l.person} — ${Math.round(pct)}% cleared, ${fmt(remaining, settings.currency)} left` });
+    }
+  });
+
   return prompts;
 }
 
@@ -436,6 +450,59 @@ export function renderDashboard(container) {
           </div>
         </div>
       ` : ''}
+
+      ${(() => {
+        const loans = getLoans();
+        const activeLoans = loans.filter(l => l.status !== 'settled');
+        if (!activeLoans.length) return '';
+        const lentOut = activeLoans.filter(l => l.type === 'lent');
+        const borrowed = activeLoans.filter(l => l.type === 'borrowed');
+        const totalLentRemaining = lentOut.reduce((s, l) => s + (l.amount - l.paid), 0);
+        const totalBorrowedRemaining = borrowed.reduce((s, l) => s + (l.amount - l.paid), 0);
+        return `
+          <div class="panel mb-20">
+            <div class="panel-header">
+              <h3>Loans & Debts</h3>
+              <a href="#" class="text-sm text-muted" onclick="event.preventDefault();document.querySelector('[data-page=loans]')?.click()" style="text-decoration:underline;cursor:pointer">View All →</a>
+            </div>
+            <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+              ${lentOut.length ? `<span class="badge" style="color:var(--accent);border-color:var(--accent)">📤 Lent: ${fmt(totalLentRemaining, settings.currency)} owed to you (${lentOut.length})</span>` : ''}
+              ${borrowed.length ? `<span class="badge" style="color:var(--purple);border-color:var(--purple)">📥 Borrowed: ${fmt(totalBorrowedRemaining, settings.currency)} you owe (${borrowed.length})</span>` : ''}
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr));gap:10px">
+              ${activeLoans.slice(0, 5).map(l => {
+                const remaining = l.amount - l.paid;
+                const pct = l.amount > 0 ? Math.min(100, (l.paid / l.amount) * 100) : 0;
+                const isOverdue = l.dueDate && new Date(l.dueDate).getTime() < Date.now();
+                const statusColor = isOverdue ? 'var(--red)' : l.type === 'lent' ? 'var(--accent)' : 'var(--purple)';
+                const icon = l.type === 'lent' ? '📤' : '📥';
+                const daysLeft = l.dueDate ? Math.ceil((new Date(l.dueDate) - new Date()) / 86400000) : null;
+                return `
+                  <div style="padding:10px;background:var(--bg3);border-left:3px solid ${statusColor}">
+                    <div class="flex gap-8" style="align-items:center;margin-bottom:4px">
+                      <span>${icon}</span>
+                      <span class="text-sm" style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(l.person)}</span>
+                      ${isOverdue ? `<span style="color:var(--red);font-size:0.65rem;font-weight:600">OVERDUE</span>` : ''}
+                    </div>
+                    <div class="flex flex-between text-sm" style="margin-bottom:4px">
+                      <span style="color:var(--text3)">${fmt(remaining, settings.currency)} left</span>
+                      <span style="font-weight:600;color:${statusColor}">${Math.round(pct)}%</span>
+                    </div>
+                    <div class="progress-bar" style="height:3px;margin-bottom:4px">
+                      <div class="progress-fill" style="width:${pct}%;background:${statusColor}"></div>
+                    </div>
+                    <div class="text-sm text-muted" style="display:flex;justify-content:space-between">
+                      <span>${fmt(l.amount, settings.currency)} total</span>
+                      ${daysLeft !== null ? `<span style="color:${isOverdue ? 'var(--red)' : daysLeft < 7 ? 'var(--yellow)' : 'var(--text3)'}">${isOverdue ? Math.abs(daysLeft) + 'd overdue' : daysLeft + 'd left'}</span>` : ''}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+            ${activeLoans.length > 5 ? `<div class="text-sm text-muted" style="text-align:center;margin-top:8px">+${activeLoans.length - 5} more</div>` : ''}
+          </div>
+        `;
+      })()}
 
       <div class="grid-3">
         <div class="panel">
