@@ -49,7 +49,10 @@ export function initGmailAuth(clientId) {
         notifyChange(true);
       },
       error_callback: (err) => {
-        console.error('[SpendWise] Gmail auth failed');
+        console.error('[SpendWise] Gmail auth failed:', err);
+        _accessToken = null;
+        _tokenExpiry = 0;
+        localStorage.removeItem(CONNECTED_KEY);
         notifyChange(false);
       },
     });
@@ -76,6 +79,7 @@ export function disconnectGmail() {
   }
   _accessToken = null;
   _tokenExpiry = 0;
+  _tokenClient = null;
   localStorage.removeItem(CONNECTED_KEY);
   notifyChange(false);
 }

@@ -8,6 +8,19 @@ import { ICONS } from '../helpers.js';
 
 let _container = null;
 
+const LOAN_SOURCES = {
+  person: { label: 'Person', icon: '👤', color: '#9e9e9e' },
+  bank: { label: 'Bank', icon: '🏦', color: '#1976d2' },
+  bkash: { label: 'bKash Loan', icon: '📱', color: '#e2136e' },
+  nagad: { label: 'Nagad Loan', icon: '💰', color: '#f6921e' },
+  rocket: { label: 'Rocket Loan', icon: '🚀', color: '#d32f2f' },
+  other: { label: 'Other', icon: '🏛️', color: '#607d8b' },
+};
+
+function getSourceInfo(source) {
+  return LOAN_SOURCES[source] || LOAN_SOURCES.person;
+}
+
 function getDaysLeft(dueDate) {
   if (!dueDate) return null;
   const now = parseLocalDate(today());
@@ -81,7 +94,7 @@ export function renderLoans(container) {
           <div class="panel" style="text-align:center;padding:40px">
             <div style="font-size:2.5rem;margin-bottom:12px">💰</div>
             <h3 style="margin:0 0 8px">No loans yet</h3>
-            <p class="text-sm text-muted" style="margin:0 0 16px">Track money you've lent or borrowed.</p>
+            <p class="text-sm text-muted" style="margin:0 0 16px">Track money lent/borrowed from people, banks, bKash, Nagad & more.</p>
             <button class="btn btn-primary" id="addLoanEmptyBtn">+ Add Loan</button>
           </div>
         ` : renderLoanList(loans, currency)}
@@ -100,12 +113,35 @@ export function renderLoans(container) {
           </div>
         </div>
         <div class="input-group">
-          <label for="loanPerson">Person's Name</label>
-          <input type="text" class="input" id="loanPerson" placeholder="e.g. Ahmed" required>
+          <label for="loanSource">Source</label>
+          <select class="input" id="loanSource">
+            <option value="person">👤 Person</option>
+            <option value="bank">🏦 Bank</option>
+            <option value="bkash">📱 bKash Loan</option>
+            <option value="nagad">💰 Nagad Loan</option>
+            <option value="rocket">🚀 Rocket Loan</option>
+            <option value="other">🏛️ Other</option>
+          </select>
         </div>
-        <div class="input-group">
-          <label for="loanPhone">Phone Number <span class="text-muted text-sm">(optional)</span></label>
-          <input type="text" class="input" id="loanPhone" placeholder="01XXXXXXXXX">
+        <div id="personFields">
+          <div class="input-group">
+            <label for="loanPerson">Person's Name</label>
+            <input type="text" class="input" id="loanPerson" placeholder="e.g. Ahmed" required>
+          </div>
+          <div class="input-group">
+            <label for="loanPhone">Phone Number <span class="text-muted text-sm">(optional)</span></label>
+            <input type="text" class="input" id="loanPhone" placeholder="01XXXXXXXXX">
+          </div>
+        </div>
+        <div id="institutionFields" style="display:none">
+          <div class="input-group">
+            <label for="loanInstitution">Institution Name</label>
+            <input type="text" class="input" id="loanInstitution" placeholder="e.g. Grameen Bank, bKash, City Bank">
+          </div>
+          <div class="input-group">
+            <label for="loanAccount">Account/Reference Number <span class="text-muted text-sm">(optional)</span></label>
+            <input type="text" class="input" id="loanAccount" placeholder="Account or reference number">
+          </div>
         </div>
         <div class="form-row">
           <div class="input-group">
@@ -185,21 +221,29 @@ function renderLoanList(loans, currency) {
     const progress = loan.amount > 0 ? Math.min(100, (loan.paid / loan.amount) * 100) : 0;
     const remaining = loan.amount - loan.paid;
     const daysLeft = getDaysLeft(loan.dueDate);
-    const info = loan.type === 'lent'
+    const sourceInfo = getSourceInfo(loan.source);
+    const isPerson = !loan.source || loan.source === 'person';
+    const isInstitution = !isPerson;
+    const direction = loan.type === 'lent'
       ? { icon: '📤', label: 'Lent to', color: 'var(--accent)' }
       : { icon: '📥', label: 'Borrowed from', color: 'var(--purple)' };
+    const nameLabel = isPerson ? loan.person : `${sourceInfo.icon} ${loan.institution || sourceInfo.label}`;
 
     return `
-      <div class="panel" style="margin-bottom:12px;border-left:3px solid ${info.color}" data-loan-id="${escapeHTML(loan.id)}">
+      <div class="panel" style="margin-bottom:12px;border-left:3px solid ${sourceInfo.color}" data-loan-id="${escapeHTML(loan.id)}">
         <div class="flex flex-between" style="align-items:flex-start;margin-bottom:8px">
           <div>
             <div class="flex gap-8" style="align-items:center;margin-bottom:4px">
-              <span style="font-size:1.2rem">${info.icon}</span>
-              <strong>${escapeHTML(loan.person)}</strong>
+              <span style="font-size:1.2rem">${direction.icon}</span>
+              <strong>${escapeHTML(nameLabel)}</strong>
               ${getStatusBadge(status)}
             </div>
-            <div class="text-sm text-muted">${info.label} you · ${escapeHTML(loan.startDate || '')}${loan.dueDate ? ` → ${escapeHTML(loan.dueDate)}` : ''}</div>
-            ${loan.phone ? `<div class="text-sm text-muted">${escapeHTML(loan.phone)}</div>` : ''}
+            <div class="text-sm text-muted">
+              ${isPerson ? `${direction.label} you` : `${loan.type === 'lent' ? 'They owe me' : 'I owe them'}`}
+              · ${escapeHTML(loan.startDate || '')}${loan.dueDate ? ` → ${escapeHTML(loan.dueDate)}` : ''}
+            </div>
+            ${isPerson && loan.phone ? `<div class="text-sm text-muted">${escapeHTML(loan.phone)}</div>` : ''}
+            ${isInstitution && loan.account ? `<div class="text-sm text-muted">Acct: ${escapeHTML(loan.account)}</div>` : ''}
           </div>
           <div style="text-align:right">
             <div style="font-size:1.1rem;font-weight:600">${fmt(remaining, currency)}</div>
@@ -209,7 +253,7 @@ function renderLoanList(loans, currency) {
 
         <!-- Progress Bar -->
         <div style="background:var(--bg3);border-radius:6px;height:6px;margin:8px 0;overflow:hidden">
-          <div style="background:${status === 'settled' ? 'var(--green)' : info.color};height:100%;width:${progress}%;transition:width 0.3s;border-radius:6px"></div>
+          <div style="background:${status === 'settled' ? 'var(--green)' : sourceInfo.color};height:100%;width:${progress}%;transition:width 0.3s;border-radius:6px"></div>
         </div>
         <div class="flex flex-between text-sm text-muted" style="margin-bottom:4px">
           <span>${fmt(loan.paid, currency)} paid (${Math.round(progress)}%)</span>
@@ -246,14 +290,18 @@ function bindEvents(container, loans, currency) {
   const openAddModal = () => {
     document.getElementById('loanEditId').value = '';
     document.getElementById('loanModalTitle').textContent = 'Add Loan';
+    document.getElementById('loanSource').value = 'person';
     document.getElementById('loanPerson').value = '';
     document.getElementById('loanPhone').value = '';
+    document.getElementById('loanInstitution').value = '';
+    document.getElementById('loanAccount').value = '';
     document.getElementById('loanAmount').value = '';
     document.getElementById('loanPaid').value = '0';
     document.getElementById('loanStartDate').value = today();
     document.getElementById('loanDueDate').value = '';
     document.getElementById('loanRate').value = '';
     document.getElementById('loanNotes').value = '';
+    toggleSourceFields('person');
     // Reset type tabs
     document.querySelectorAll('#loanTypeTabs .tab').forEach(t => t.classList.remove('active'));
     document.querySelector('#loanTypeTabs .tab[data-type="lent"]').classList.add('active');
@@ -263,6 +311,11 @@ function bindEvents(container, loans, currency) {
 
   document.getElementById('addLoanBtn')?.addEventListener('click', openAddModal);
   document.getElementById('addLoanEmptyBtn')?.addEventListener('click', openAddModal);
+
+  // Source toggle
+  document.getElementById('loanSource')?.addEventListener('change', (e) => {
+    toggleSourceFields(e.target.value);
+  });
 
   // Type tabs
   document.querySelectorAll('#loanTypeTabs .tab').forEach(tab => {
@@ -290,8 +343,12 @@ function bindEvents(container, loans, currency) {
   document.getElementById('loanSaveBtn')?.addEventListener('click', () => {
     const editId = document.getElementById('loanEditId').value;
     const type = document.querySelector('#loanTypeTabs .tab.active')?.dataset.type || 'lent';
-    const person = document.getElementById('loanPerson').value.trim();
-    const phone = document.getElementById('loanPhone').value.trim();
+    const source = document.getElementById('loanSource').value;
+    const isPerson = source === 'person';
+    const person = isPerson ? document.getElementById('loanPerson').value.trim() : '';
+    const phone = isPerson ? document.getElementById('loanPhone').value.trim() : '';
+    const institution = !isPerson ? document.getElementById('loanInstitution').value.trim() : '';
+    const account = !isPerson ? document.getElementById('loanAccount').value.trim() : '';
     const amount = parseFloat(document.getElementById('loanAmount').value) || 0;
     const paid = parseFloat(document.getElementById('loanPaid').value) || 0;
     const startDate = document.getElementById('loanStartDate').value;
@@ -299,11 +356,15 @@ function bindEvents(container, loans, currency) {
     const rate = parseFloat(document.getElementById('loanRate').value) || 0;
     const notes = document.getElementById('loanNotes').value.trim();
 
-    if (!person) { toastError('Person name is required'); return; }
+    if (isPerson && !person) { toastError('Person name is required'); return; }
+    if (!isPerson && !institution) { toastError('Institution name is required'); return; }
     if (!amount || amount <= 0) { toastError('Amount must be positive'); return; }
 
+    const displayName = isPerson ? person : institution;
+
     const data = {
-      type, person, phone, amount, paid, startDate, dueDate, rate, notes,
+      type, source, person: displayName, phone, institution, account,
+      amount, paid, startDate, dueDate, rate, notes,
       status: paid >= amount ? 'settled' : 'active',
       payments: [],
       updatedAt: new Date().toISOString()
@@ -363,6 +424,18 @@ function bindEvents(container, loans, currency) {
   });
 }
 
+function toggleSourceFields(source) {
+  const personFields = document.getElementById('personFields');
+  const institutionFields = document.getElementById('institutionFields');
+  if (source === 'person') {
+    personFields.style.display = '';
+    institutionFields.style.display = 'none';
+  } else {
+    personFields.style.display = 'none';
+    institutionFields.style.display = '';
+  }
+}
+
 function bindDataActions(container, loans, currency) {
   // Edit loan
   container.querySelectorAll('[data-edit-loan]').forEach(btn => {
@@ -371,8 +444,18 @@ function bindDataActions(container, loans, currency) {
       if (!loan) return;
       document.getElementById('loanEditId').value = loan.id;
       document.getElementById('loanModalTitle').textContent = 'Edit Loan';
-      document.getElementById('loanPerson').value = loan.person;
-      document.getElementById('loanPhone').value = loan.phone || '';
+      // Set source
+      const source = loan.source || 'person';
+      document.getElementById('loanSource').value = source;
+      toggleSourceFields(source);
+      // Fill fields
+      if (source === 'person') {
+        document.getElementById('loanPerson').value = loan.person || '';
+        document.getElementById('loanPhone').value = loan.phone || '';
+      } else {
+        document.getElementById('loanInstitution').value = loan.institution || loan.person || '';
+        document.getElementById('loanAccount').value = loan.account || '';
+      }
       document.getElementById('loanAmount').value = loan.amount;
       document.getElementById('loanPaid').value = loan.paid;
       document.getElementById('loanStartDate').value = loan.startDate;
