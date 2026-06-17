@@ -170,14 +170,19 @@ export function renderLoans(container) {
         </div>
         <div class="form-row">
           <div class="input-group">
-            <label for="loanAmount">Total Amount</label>
+            <label for="loanAmount">Total Repayable Amount <span class="text-muted text-sm">(principal + interest)</span></label>
             <input type="number" class="input" id="loanAmount" placeholder="0.00" step="0.01" min="0" required>
           </div>
+          <div class="input-group">
+            <label for="loanPrincipal">Amount Received / Disbursed <span class="text-muted text-sm">(cash in hand)</span></label>
+            <input type="number" class="input" id="loanPrincipal" placeholder="0.00" step="0.01" min="0">
+          </div>
+        </div>
+        <div class="form-row">
           <div class="input-group">
             <label for="loanPaid">Already Paid</label>
             <input type="number" class="input" id="loanPaid" placeholder="0.00" step="0.01" min="0" value="0">
           </div>
-        </div>
         <div class="form-row">
           <div class="input-group">
             <label for="loanStartDate">Start Date</label>
@@ -335,6 +340,7 @@ function bindEvents(container, loans, currency) {
     document.getElementById('loanInstitution').value = '';
     document.getElementById('loanAccount').value = '';
     document.getElementById('loanAmount').value = '';
+    document.getElementById('loanPrincipal').value = '';
     document.getElementById('loanPaid').value = '0';
     document.getElementById('loanStartDate').value = today();
     document.getElementById('loanDueDate').value = '';
@@ -401,6 +407,7 @@ function bindEvents(container, loans, currency) {
     const institution = !isPerson ? document.getElementById('loanInstitution').value.trim() : '';
     const account = !isPerson ? document.getElementById('loanAccount').value.trim() : '';
     const amount = parseFloat(document.getElementById('loanAmount').value) || 0;
+    const principal = parseFloat(document.getElementById('loanPrincipal').value) || amount;
     const paid = parseFloat(document.getElementById('loanPaid').value) || 0;
     const startDate = document.getElementById('loanStartDate').value;
     const dueDate = document.getElementById('loanDueDate').value || null;
@@ -417,7 +424,7 @@ function bindEvents(container, loans, currency) {
 
     const data = {
       type, source, person: displayName, phone, institution, account,
-      amount, paid, startDate, dueDate, rate, notes, frequency, installment,
+      amount, principal, paid, startDate, dueDate, rate, notes, frequency, installment,
       status: paid >= amount ? 'settled' : 'active',
       payments: [],
       updatedAt: new Date().toISOString()
@@ -466,27 +473,58 @@ function bindEvents(container, loans, currency) {
       data.id = loanId;
       data.createdAt = new Date().toISOString();
 
-      const txnType = type === 'lent' ? 'expense' : 'income';
-      const txnDesc = type === 'lent'
-        ? `Lent to ${displayName}`
-        : `Borrowed from ${displayName}`;
       const txnId = uid();
       data.transactionId = txnId;
 
       addLoan(data);
 
-      addTransaction({
-        id: txnId,
-        type: txnType,
-        amount,
-        date: startDate,
-        category: 'other',
-        payment: source === 'person' ? 'cash' : source,
-        description: notes ? `${txnDesc} - ${notes}` : txnDesc,
-        tags: ['loan'],
-        recurring: false,
-        frequency: null
-      });
+      if (type === 'borrowed') {
+        addTransaction({
+          id: txnId,
+          type: 'income',
+          amount: principal,
+          date: startDate,
+          category: 'other',
+          payment: source === 'person' ? 'cash' : source,
+          description: notes ? `Borrowed from ${displayName} - ${notes}` : `Borrowed from ${displayName}`,
+          tags: ['loan'],
+          recurring: false,
+          frequency: null
+        });
+      } else {
+        addTransaction({
+          id: txnId,
+          type: 'expense',
+          amount: principal,
+          date: startDate,
+          category: 'other',
+          payment: source === 'person' ? 'cash' : source,
+          description: notes ? `Lent to ${displayName} - ${notes}` : `Lent to ${displayName}`,
+          tags: ['loan'],
+          recurring: false,
+          frequency: null
+        });
+      }
+
+      if (paid > 0) {
+        const payTxnType = type === 'borrowed' ? 'expense' : 'income';
+        const payDesc = type === 'borrowed'
+          ? `Loan repayment to ${displayName}`
+          : `Loan repayment from ${displayName}`;
+        addTransaction({
+          id: uid(),
+          type: payTxnType,
+          amount: paid,
+          date: startDate,
+          category: 'other',
+          payment: source === 'person' ? 'cash' : source,
+          description: payDesc,
+          tags: ['loan'],
+          recurring: false,
+          frequency: null
+        });
+        data.payments = [{ date: startDate, amount: paid, note: 'Initial payment' }];
+      }
 
       if (frequency) {
         const installmentAmt = installment || amount / 12;
@@ -595,6 +633,7 @@ function bindDataActions(container, loans, currency) {
         document.getElementById('loanAccount').value = loan.account || '';
       }
       document.getElementById('loanAmount').value = loan.amount;
+      document.getElementById('loanPrincipal').value = loan.principal || loan.amount;
       document.getElementById('loanPaid').value = loan.paid;
       document.getElementById('loanStartDate').value = loan.startDate;
       document.getElementById('loanDueDate').value = loan.dueDate || '';
