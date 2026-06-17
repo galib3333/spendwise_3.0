@@ -8,6 +8,7 @@ let _tokenClient = null;
 let _accessToken = null;
 let _tokenExpiry = 0;
 let _onChange = null;
+let _originalClose = null;
 
 export function onConnectionChange(fn) {
   _onChange = fn;
@@ -26,6 +27,21 @@ export function getAccessToken() {
   return null;
 }
 
+function suppressCloseWarning() {
+  if (_originalClose) return;
+  _originalClose = window.close;
+  window.close = function() {
+    try { return _originalClose.call(window); } catch(e) { /* COOP safe */ }
+  };
+}
+
+function restoreClose() {
+  if (_originalClose) {
+    window.close = _originalClose;
+    _originalClose = null;
+  }
+}
+
 export function initGmailAuth(clientId) {
   return new Promise((resolve) => {
     if (!window.google || !window.google.accounts) {
@@ -38,8 +54,12 @@ export function initGmailAuth(clientId) {
       client_id: clientId,
       scope: GMAIL_SCOPE,
       callback: (tokenResponse) => {
+        restoreClose();
         if (tokenResponse.error) {
           console.error('Gmail auth error:', tokenResponse.error);
+          _accessToken = null;
+          _tokenExpiry = 0;
+          localStorage.removeItem(CONNECTED_KEY);
           notifyChange(false);
           return;
         }
@@ -49,6 +69,7 @@ export function initGmailAuth(clientId) {
         notifyChange(true);
       },
       error_callback: (err) => {
+        restoreClose();
         console.error('[SpendWise] Gmail auth failed:', err);
         _accessToken = null;
         _tokenExpiry = 0;
@@ -66,6 +87,7 @@ export function requestGmailAccess() {
     console.error('Gmail auth not initialized. Call initGmailAuth first.');
     return false;
   }
+  suppressCloseWarning();
   _tokenClient.requestAccessToken({ prompt: 'consent' });
   return true;
 }
@@ -80,6 +102,7 @@ export function disconnectGmail() {
   _accessToken = null;
   _tokenExpiry = 0;
   _tokenClient = null;
+  restoreClose();
   localStorage.removeItem(CONNECTED_KEY);
   notifyChange(false);
 }

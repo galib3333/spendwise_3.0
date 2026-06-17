@@ -1,5 +1,5 @@
 // ===== LOANS PAGE =====
-import { getLoans, addLoan, updateLoan, deleteLoan, getSettings } from '../store.js';
+import { getLoans, addLoan, updateLoan, deleteLoan, getSettings, addTransaction, addRecurring, getRecurringList } from '../store.js';
 import { uid, today, parseLocalDate, toDateStr, fmt } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastError } from '../toast.js';
@@ -16,6 +16,17 @@ const LOAN_SOURCES = {
   rocket: { label: 'Rocket Loan', icon: '🚀', color: '#d32f2f' },
   other: { label: 'Other', icon: '🏛️', color: '#607d8b' },
 };
+
+const FREQUENCY_OPTIONS = [
+  { value: '', label: 'One-time (no schedule)' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'biweekly', label: 'Every 2 weeks' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'yearly', label: 'Yearly' },
+];
+
+const FREQUENCY_LABELS = { weekly: 'Weekly', biweekly: 'Biweekly', monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' };
 
 function getSourceInfo(source) {
   return LOAN_SOURCES[source] || LOAN_SOURCES.person;
@@ -50,6 +61,24 @@ function getStatusBadge(status) {
   return `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:0.7rem;font-weight:600;text-transform:uppercase;background:${color}22;color:${color}">${status}</span>`;
 }
 
+function getFrequencyBadge(frequency) {
+  if (!frequency) return '';
+  const label = FREQUENCY_LABELS[frequency] || frequency;
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:0.65rem;font-weight:600;background:var(--accent)22;color:var(--accent)">🔁 ${label}</span>`;
+}
+
+function advanceDate(dateStr, frequency) {
+  const d = parseLocalDate(dateStr);
+  switch (frequency) {
+    case 'weekly': d.setDate(d.getDate() + 7); break;
+    case 'biweekly': d.setDate(d.getDate() + 14); break;
+    case 'monthly': d.setMonth(d.getMonth() + 1); break;
+    case 'quarterly': d.setMonth(d.getMonth() + 3); break;
+    case 'yearly': d.setFullYear(d.getFullYear() + 1); break;
+  }
+  return toDateStr(d);
+}
+
 export function renderLoans(container) {
   _container = container;
   const loans = getLoans();
@@ -72,7 +101,6 @@ export function renderLoans(container) {
         <button class="btn btn-primary btn-sm" id="addLoanBtn">${ICONS.plus} Add Loan</button>
       </div>
 
-      <!-- Summary Cards -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px">
         ${renderCard('Total Lent', fmt(totalLent, currency), 'var(--accent)')}
         ${renderCard('Received Back', fmt(totalPaid, currency), 'var(--green)')}
@@ -80,7 +108,6 @@ export function renderLoans(container) {
         ${renderCard('Amount Paid Back', fmt(totalPaidBorrowed, currency), 'var(--purple)')}
       </div>
 
-      <!-- Filter Tabs -->
       <div class="tabs" style="margin-bottom:16px" id="loanFilterTabs" role="tablist">
         <button class="tab active" role="tab" data-filter="all">All (${loans.length})</button>
         <button class="tab" role="tab" data-filter="active">Active (${active.length})</button>
@@ -88,7 +115,6 @@ export function renderLoans(container) {
         <button class="tab" role="tab" data-filter="settled">Settled (${settled.length})</button>
       </div>
 
-      <!-- Loan List -->
       <div id="loanList">
         ${loans.length === 0 ? `
           <div class="panel" style="text-align:center;padding:40px">
@@ -168,6 +194,18 @@ export function renderLoans(container) {
           <input type="number" class="input" id="loanRate" placeholder="0" step="0.1" min="0" max="100">
         </div>
         <div class="input-group">
+          <label for="loanFrequency">Payment Schedule</label>
+          <select class="input" id="loanFrequency">
+            ${FREQUENCY_OPTIONS.map(o => `<option value="${o.value}">${o.label}</option>`).join('')}
+          </select>
+        </div>
+        <div id="installmentGroup" style="display:none">
+          <div class="input-group">
+            <label for="loanInstallment">Installment Amount <span class="text-muted text-sm">(auto-calculated if empty)</span></label>
+            <input type="number" class="input" id="loanInstallment" placeholder="0.00" step="0.01" min="0">
+          </div>
+        </div>
+        <div class="input-group">
           <label for="loanNotes">Notes <span class="text-muted text-sm">(optional)</span></label>
           <input type="text" class="input" id="loanNotes" placeholder="e.g. For business investment">
         </div>
@@ -228,15 +266,17 @@ function renderLoanList(loans, currency) {
       ? { icon: '📤', label: 'Lent to', color: 'var(--accent)' }
       : { icon: '📥', label: 'Borrowed from', color: 'var(--purple)' };
     const nameLabel = isPerson ? loan.person : `${sourceInfo.icon} ${loan.institution || sourceInfo.label}`;
+    const freqBadge = getFrequencyBadge(loan.frequency);
 
     return `
       <div class="panel" style="margin-bottom:12px;border-left:3px solid ${sourceInfo.color}" data-loan-id="${escapeHTML(loan.id)}">
         <div class="flex flex-between" style="align-items:flex-start;margin-bottom:8px">
           <div>
-            <div class="flex gap-8" style="align-items:center;margin-bottom:4px">
+            <div class="flex gap-8" style="align-items:center;margin-bottom:4px;flex-wrap:wrap">
               <span style="font-size:1.2rem">${direction.icon}</span>
               <strong>${escapeHTML(nameLabel)}</strong>
               ${getStatusBadge(status)}
+              ${freqBadge}
             </div>
             <div class="text-sm text-muted">
               ${isPerson ? `${direction.label} you` : `${loan.type === 'lent' ? 'They owe me' : 'I owe them'}`}
@@ -251,7 +291,6 @@ function renderLoanList(loans, currency) {
           </div>
         </div>
 
-        <!-- Progress Bar -->
         <div style="background:var(--bg3);border-radius:6px;height:6px;margin:8px 0;overflow:hidden">
           <div style="background:${status === 'settled' ? 'var(--green)' : sourceInfo.color};height:100%;width:${progress}%;transition:width 0.3s;border-radius:6px"></div>
         </div>
@@ -261,6 +300,7 @@ function renderLoanList(loans, currency) {
         </div>
 
         ${loan.rate > 0 ? `<div class="text-sm text-muted" style="margin-bottom:4px">Interest: ${loan.rate}%</div>` : ''}
+        ${loan.installment ? `<div class="text-sm text-muted" style="margin-bottom:4px">Installment: ${fmt(loan.installment, currency)} ${loan.frequency ? '/ ' + FREQUENCY_LABELS[loan.frequency] : ''}</div>` : ''}
         ${loan.notes ? `<div class="text-sm text-muted" style="margin-bottom:4px;font-style:italic">"${escapeHTML(loan.notes)}"</div>` : ''}
 
         ${loan.payments && loan.payments.length > 0 ? `
@@ -301,8 +341,10 @@ function bindEvents(container, loans, currency) {
     document.getElementById('loanDueDate').value = '';
     document.getElementById('loanRate').value = '';
     document.getElementById('loanNotes').value = '';
+    document.getElementById('loanFrequency').value = '';
+    document.getElementById('loanInstallment').value = '';
+    document.getElementById('installmentGroup').style.display = 'none';
     toggleSourceFields('person');
-    // Reset type tabs
     document.querySelectorAll('#loanTypeTabs .tab').forEach(t => t.classList.remove('active'));
     document.querySelector('#loanTypeTabs .tab[data-type="lent"]').classList.add('active');
     document.getElementById('loanModal').classList.add('show');
@@ -312,12 +354,10 @@ function bindEvents(container, loans, currency) {
   document.getElementById('addLoanBtn')?.addEventListener('click', openAddModal);
   document.getElementById('addLoanEmptyBtn')?.addEventListener('click', openAddModal);
 
-  // Source toggle
   document.getElementById('loanSource')?.addEventListener('change', (e) => {
     toggleSourceFields(e.target.value);
   });
 
-  // Type tabs
   document.querySelectorAll('#loanTypeTabs .tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('#loanTypeTabs .tab').forEach(t => t.classList.remove('active'));
@@ -325,7 +365,6 @@ function bindEvents(container, loans, currency) {
     });
   });
 
-  // Filter tabs
   document.getElementById('loanFilterTabs')?.addEventListener('click', (e) => {
     const tab = e.target.closest('.tab');
     if (!tab) return;
@@ -339,7 +378,20 @@ function bindEvents(container, loans, currency) {
     bindDataActions(container, loans, currency);
   });
 
-  // Save loan
+  document.getElementById('loanFrequency')?.addEventListener('change', (e) => {
+    const group = document.getElementById('installmentGroup');
+    group.style.display = e.target.value ? '' : 'none';
+    if (e.target.value) {
+      const amt = parseFloat(document.getElementById('loanAmount').value) || 0;
+      const inst = document.getElementById('loanInstallment');
+      if (!inst.value && amt > 0) {
+        const freq = e.target.value;
+        const divisor = freq === 'weekly' ? 4 : freq === 'biweekly' ? 2 : freq === 'quarterly' ? 3 : freq === 'yearly' ? 1 : 12;
+        inst.value = (amt / divisor).toFixed(2);
+      }
+    }
+  });
+
   document.getElementById('loanSaveBtn')?.addEventListener('click', () => {
     const editId = document.getElementById('loanEditId').value;
     const type = document.querySelector('#loanTypeTabs .tab.active')?.dataset.type || 'lent';
@@ -355,6 +407,8 @@ function bindEvents(container, loans, currency) {
     const dueDate = document.getElementById('loanDueDate').value || null;
     const rate = parseFloat(document.getElementById('loanRate').value) || 0;
     const notes = document.getElementById('loanNotes').value.trim();
+    const frequency = document.getElementById('loanFrequency').value || null;
+    const installment = parseFloat(document.getElementById('loanInstallment').value) || null;
 
     if (isPerson && !person) { toastError('Person name is required'); return; }
     if (!isPerson && !institution) { toastError('Institution name is required'); return; }
@@ -364,30 +418,50 @@ function bindEvents(container, loans, currency) {
 
     const data = {
       type, source, person: displayName, phone, institution, account,
-      amount, paid, startDate, dueDate, rate, notes,
+      amount, paid, startDate, dueDate, rate, notes, frequency, installment,
       status: paid >= amount ? 'settled' : 'active',
       payments: [],
       updatedAt: new Date().toISOString()
     };
 
+    let loanId;
     if (editId) {
       const existing = loans.find(l => l.id === editId);
       data.payments = existing?.payments || [];
       data.createdAt = existing?.createdAt;
+      loanId = editId;
       updateLoan(editId, data);
       toastSuccess('Loan updated');
     } else {
-      data.id = uid();
+      loanId = uid();
+      data.id = loanId;
       data.createdAt = new Date().toISOString();
       addLoan(data);
       toastSuccess('Loan added');
+    }
+
+    if (frequency && !editId) {
+      const installmentAmt = installment || amount / 12;
+      const nextDate = advanceDate(startDate, frequency);
+      addRecurring({
+        id: uid(),
+        amount: installmentAmt,
+        description: `${type === 'lent' ? 'Loan received' : 'Loan payment'} - ${displayName}`,
+        frequency,
+        category: 'other',
+        startDate,
+        nextDate,
+        endDate: dueDate || null,
+        active: true,
+        loanId
+      });
+      toastSuccess('Recurring payment scheduled');
     }
 
     document.getElementById('loanModal').classList.remove('show');
     renderLoans(container);
   });
 
-  // Record payment
   document.getElementById('paySaveBtn')?.addEventListener('click', () => {
     const loanId = document.getElementById('payLoanId').value;
     const amount = parseFloat(document.getElementById('payAmount').value) || 0;
@@ -409,14 +483,30 @@ function bindEvents(container, loans, currency) {
       updatedAt: new Date().toISOString()
     });
 
+    const txnType = loan.type === 'lent' ? 'income' : 'expense';
+    const desc = loan.type === 'lent'
+      ? `Loan repayment from ${loan.person || 'someone'}`
+      : `Loan payment to ${loan.person || 'someone'}`;
+    addTransaction({
+      id: uid(),
+      type: txnType,
+      amount,
+      date,
+      category: 'other',
+      payment: loan.source === 'person' ? 'cash' : loan.source,
+      description: note ? `${desc} - ${note}` : desc,
+      tags: ['loan'],
+      recurring: false,
+      frequency: null
+    });
+
     document.getElementById('paymentModal').classList.remove('show');
-    toastSuccess('Payment recorded');
+    toastSuccess('Payment recorded & transaction created');
     renderLoans(container);
   });
 
   bindDataActions(container, loans, currency);
 
-  // Close modals
   container.querySelectorAll('[data-close-modal]').forEach(btn => {
     btn.addEventListener('click', () => {
       btn.closest('.modal-overlay')?.classList.remove('show');
@@ -437,18 +527,15 @@ function toggleSourceFields(source) {
 }
 
 function bindDataActions(container, loans, currency) {
-  // Edit loan
   container.querySelectorAll('[data-edit-loan]').forEach(btn => {
     btn.addEventListener('click', () => {
       const loan = loans.find(l => l.id === btn.dataset.editLoan);
       if (!loan) return;
       document.getElementById('loanEditId').value = loan.id;
       document.getElementById('loanModalTitle').textContent = 'Edit Loan';
-      // Set source
       const source = loan.source || 'person';
       document.getElementById('loanSource').value = source;
       toggleSourceFields(source);
-      // Fill fields
       if (source === 'person') {
         document.getElementById('loanPerson').value = loan.person || '';
         document.getElementById('loanPhone').value = loan.phone || '';
@@ -462,14 +549,15 @@ function bindDataActions(container, loans, currency) {
       document.getElementById('loanDueDate').value = loan.dueDate || '';
       document.getElementById('loanRate').value = loan.rate || '';
       document.getElementById('loanNotes').value = loan.notes || '';
-      // Set type tabs
+      document.getElementById('loanFrequency').value = loan.frequency || '';
+      document.getElementById('loanInstallment').value = loan.installment || '';
+      document.getElementById('installmentGroup').style.display = loan.frequency ? '' : 'none';
       document.querySelectorAll('#loanTypeTabs .tab').forEach(t => t.classList.remove('active'));
       document.querySelector(`#loanTypeTabs .tab[data-type="${loan.type}"]`).classList.add('active');
       document.getElementById('loanModal').classList.add('show');
     });
   });
 
-  // Delete loan
   container.querySelectorAll('[data-delete-loan]').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (await confirmModal('Delete this loan? This cannot be undone.')) {
@@ -480,7 +568,6 @@ function bindDataActions(container, loans, currency) {
     });
   });
 
-  // Record payment
   container.querySelectorAll('[data-record-payment]').forEach(btn => {
     btn.addEventListener('click', () => {
       document.getElementById('payLoanId').value = btn.dataset.recordPayment;

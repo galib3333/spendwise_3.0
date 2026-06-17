@@ -1,5 +1,5 @@
 // ===== MAIN APPLICATION ENTRY POINT =====
-import { initStore, getSettings, updateSettings, addTransaction, getTransactions, getRecurringList, addBulkTransactions, updateRecurring, addRecurring, getAppMode, setAppMode } from './store.js';
+import { initStore, getSettings, updateSettings, addTransaction, getTransactions, getRecurringList, addBulkTransactions, updateRecurring, addRecurring, getAppMode, setAppMode, getLoans, updateLoan } from './store.js';
 import { initRouter, navigate, registerPage } from './router.js';
 import { initModals } from './modals.js';
 import { setChartUtils } from './charts.js';
@@ -51,25 +51,38 @@ function processRecurring() {
   const now = today();
   const newTransactions = [];
   const recurringList = getRecurringList();
+  const loans = getLoans();
 
   recurringList.forEach(r => {
     if(!r.active) return;
     if(r.nextDate <= now) {
-      // Skip if past end date
       if(r.endDate && r.nextDate > r.endDate) return;
 
+      const txnType = 'expense';
       newTransactions.push({
         id: uid(),
-        type: 'expense',
+        type: txnType,
         amount: r.amount,
         date: r.nextDate,
         category: r.category,
         payment: 'auto',
         description: r.description + ' (auto)',
-        tags: ['recurring'],
+        tags: r.loanId ? ['recurring', 'loan'] : ['recurring'],
         recurring: true,
         frequency: r.frequency
       });
+
+      if (r.loanId) {
+        const loan = loans.find(l => l.id === r.loanId);
+        if (loan) {
+          const newPaid = loan.paid + r.amount;
+          updateLoan(r.loanId, {
+            paid: newPaid,
+            status: newPaid >= loan.amount ? 'settled' : loan.status,
+            updatedAt: new Date().toISOString()
+          });
+        }
+      }
 
       const d = parseLocalDate(r.nextDate);
       switch(r.frequency) {
@@ -81,7 +94,6 @@ function processRecurring() {
       }
       const nextDateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
-      // If past end date, deactivate instead of advancing
       if(r.endDate && nextDateStr > r.endDate) {
         updateRecurring(r.id, { active: false, nextDate: nextDateStr });
       } else {
