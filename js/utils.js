@@ -22,8 +22,8 @@ export const INCOME_CATS = [
   {id:'other-inc',name:'Other Income',icon:'💎',color:'#9e9e9e'}
 ];
 export const ALL_CATS = [...EXPENSE_CATS, ...INCOME_CATS];
-export const PAYMENT_LABELS = {cash:'Cash',card:'Debit Card',credit:'Credit Card',upi:'UPI',bank:'Bank Transfer',wallet:'Digital Wallet'};
-export const BUSINESS_PAYMENT_LABELS = {cash:'Cash',card:'Card',bank:'Bank Transfer',mobile:'Mobile Payment'};
+export const PAYMENT_LABELS = {cash:'Cash',card:'Debit Card',credit:'Credit Card',bkash:'bKash',nagad:'Nagad',rocket:'Rocket (DBBL)',upay:'Upay',bank:'Bank Transfer',wallet:'Digital Wallet'};
+export const BUSINESS_PAYMENT_LABELS = {cash:'Cash',card:'Card',bkash:'bKash',nagad:'Nagad',rocket:'Rocket (DBBL)',bank:'Bank Transfer',mobile:'Mobile Payment'};
 
 // ===== HELPERS =====
 export function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
@@ -344,7 +344,7 @@ export function validateBusinessTransaction(data) {
   if (!data.date || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) errors.push('Invalid date format');
   if (!data.category) errors.push('Category is required');
   if (!['expense', 'income'].includes(data.type)) errors.push('Invalid transaction type');
-  if (data.payment && !['cash', 'card', 'bank', 'mobile'].includes(data.payment)) errors.push('Invalid payment method');
+  if (data.payment && !['cash', 'card', 'bank', 'mobile', 'bkash', 'nagad', 'rocket'].includes(data.payment)) errors.push('Invalid payment method');
   if (data.description && data.description.length > MAX_DESC_LENGTH) errors.push(`Description must be ${MAX_DESC_LENGTH} characters or less`);
   if (data.tax !== null && data.tax !== undefined && (isNaN(data.tax) || data.tax < 0)) errors.push('Tax must be a non-negative number');
   if (data.taxRate !== null && data.taxRate !== undefined && (isNaN(data.taxRate) || data.taxRate < 0 || data.taxRate > 100)) errors.push('Tax rate must be between 0 and 100');
@@ -425,7 +425,7 @@ export function sanitizeImportData(data) {
       date: String(t.date).slice(0, 10),
       category: String(t.category || ''),
       description: String(t.description || '').slice(0, 200),
-      payment: ['cash', 'card', 'bank', 'mobile'].includes(t.payment) ? t.payment : 'cash',
+      payment: ['cash', 'card', 'bank', 'mobile', 'bkash', 'nagad', 'rocket'].includes(t.payment) ? t.payment : 'cash',
       tax: Math.max(0, Number(t.tax) || 0),
       taxRate: Math.max(0, Number(t.taxRate) || 0),
       createdBy: String(t.createdBy || 'owner')

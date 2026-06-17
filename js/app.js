@@ -44,6 +44,7 @@ import { renderExport } from './pages/export-page.js';
 import { renderSettings } from './pages/settings.js';
 import { renderBusiness, renderBizExpenses, renderBizSales, renderBizReports } from './pages/business.js';
 import { renderBanking } from './pages/banking.js';
+import { renderLoans } from './pages/loans.js';
 
 // ===== RECURRING PROCESSING =====
 function processRecurring() {
@@ -235,6 +236,10 @@ const PERSONAL_NAV = `
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
     Savings Goals
   </div>
+  <div class="nav-item" data-page="loans" role="menuitem" tabindex="0">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+    Loans & Debts
+  </div>
   <div class="nav-section" role="separator">Tools</div>
   <div class="nav-item" data-page="banking" role="menuitem" tabindex="0">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg>
@@ -415,6 +420,7 @@ async function init() {
   registerPage('export', renderExport);
   registerPage('settings', renderSettings);
   registerPage('banking', renderBanking);
+  registerPage('loans', renderLoans);
   registerPage('business', renderBusiness);
   registerPage('biz-expenses', renderBizExpenses);
   registerPage('biz-sales', renderBizSales);

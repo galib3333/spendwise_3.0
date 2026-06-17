@@ -18,11 +18,14 @@ const TYPE_PATTERNS = [
   { regex: /(?:card\s*(?:payment|transaction))/i, type: 'card' },
 ];
 
-// Amount pattern: Tk 5,000.00 or BDT 5,000.00
+// Amount pattern: Tk 5,000.00 or BDT 5,000.00 or ৳5,000.00 or BDT5000
 const AMOUNT_REGEX = /(?:Tk|৳|BDT)\s*([\d,]+\.?\d*)/i;
 
-// Balance pattern: Avail Bal: Tk 45,000.00
-const BALANCE_REGEX = /(?:avail(?:able)?(?:\s*bal)?|balance)\s*(?::|is)?\s*(?:Tk|৳|BDT)\s*([\d,]+\.?\d*)/i;
+// Fallback: "debited with 5,000.00" or "credited with 5,000.00" or "amount: 5,000.00"
+const AMOUNT_FALLBACK_REGEX = /(?:debited|credited|with|amount)\s*(?:of|:)?\s*([\d,]+\.?\d{2})/i;
+
+// Balance pattern: Avail Bal: Tk 45,000.00 or Balance: BDT 45,000.00 or available balance Tk 45,000.00
+const BALANCE_REGEX = /(?:avail(?:able)?(?:\s*bal)?|balance|closing|current)\s*(?::|is)?\s*(?:Tk|৳|BDT)\s*([\d,]+\.?\d*)/i;
 
 // Reference pattern
 const REF_REGEX = /(?:ref(?:erence)?|auth(?:orization)?)\s*(?::)?\s*([A-Z0-9]+)/i;
@@ -38,8 +41,11 @@ const DATE_REGEX = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})|(\d{1,2}\s+\w+\s+\d{4})/
 
 function parseAmount(text) {
   const match = text.match(AMOUNT_REGEX);
-  if (!match) return null;
-  return parseFloat(match[1].replace(/,/g, ''));
+  if (match) return parseFloat(match[1].replace(/,/g, ''));
+  // Fallback: try to find amount after "debited with X" or "amount: X"
+  const fallback = text.match(AMOUNT_FALLBACK_REGEX);
+  if (fallback) return parseFloat(fallback[1].replace(/,/g, ''));
+  return null;
 }
 
 function parseBalance(text) {
@@ -96,7 +102,13 @@ function formatDate(dateStr) {
 
 function parse(subject, body, date) {
   const text = `${subject || ''} ${body || ''}`;
-  const amount = parseAmount(text);
+
+  // Context-aware: extract amount from "debited with Tk X" or "credited with Tk X" first
+  const ctxMatch = text.match(/(?:debited|credited)\s+with\s+(?:(?:Tk|৳|BDT)\s*)?([\d,]+\.?\d*)/i);
+  let amount = ctxMatch ? parseFloat(ctxMatch[1].replace(/,/g, '')) : null;
+
+  // Fallback to generic amount pattern
+  if (amount === null) amount = parseAmount(text);
   if (amount === null) return null;
 
   const txType = parseType(text);
@@ -127,7 +139,7 @@ function parse(subject, body, date) {
 }
 
 function detect(from, subject) {
-  return /ebl\.com/i.test(from) || /\bebl\b/i.test(subject);
+  return /ebl\.com/i.test(from) || /ebl\s*bank/i.test(from) || /\bebl\b/i.test(subject);
 }
 
 registerAdapter({

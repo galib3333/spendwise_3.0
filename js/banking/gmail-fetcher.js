@@ -5,12 +5,14 @@ import { getAccessToken, isGmailConnected } from './gmail-auth.js';
 import { parseEmailAuto, detectProvider } from './email-parser.js';
 import './bkb-adapter.js';
 import './ebl-adapter.js';
+import './nagad-adapter.js';
 
 const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1';
 
 // Gmail search queries for each provider
 const PROVIDER_QUERIES = {
   bkash: 'from:(no-reply@bkash.com OR alerts@bkash.com) newer_than:30d',
+  nagad: 'from:(no-reply@nagad.com.bd OR alerts@nagad.com.bd) newer_than:30d',
   ebl: 'from:(alerts@ebl.com.pl OR noreply@ebl.com.pl) newer_than:30d',
 };
 
@@ -35,6 +37,26 @@ function decodeBase64Url(str) {
   return atob(padded);
 }
 
+function stripHtml(html) {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<\/tr>/gi, '\n')
+    .replace(/<\/td>/gi, ' ')
+    .replace(/<\/th>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#\d+;/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 function extractBody(payload) {
   if (!payload) return '';
 
@@ -43,11 +65,20 @@ function extractBody(payload) {
     return decodeBase64Url(payload.body.data);
   }
 
-  // Multipart — find text/plain part
+  // Simple text/html body
+  if (payload.mimeType === 'text/html' && payload.body?.data) {
+    return stripHtml(decodeBase64Url(payload.body.data));
+  }
+
+  // Multipart — find text/plain part first, then text/html as fallback
   if (payload.parts) {
+    let htmlBody = '';
     for (const part of payload.parts) {
       if (part.mimeType === 'text/plain' && part.body?.data) {
         return decodeBase64Url(part.body.data);
+      }
+      if (part.mimeType === 'text/html' && part.body?.data) {
+        htmlBody = stripHtml(decodeBase64Url(part.body.data));
       }
       // Nested multipart
       if (part.parts) {
@@ -55,11 +86,14 @@ function extractBody(payload) {
         if (nested) return nested;
       }
     }
+    if (htmlBody) return htmlBody;
   }
 
   // Fallback: try body.data
   if (payload.body?.data) {
-    return decodeBase64Url(payload.body.data);
+    const raw = decodeBase64Url(payload.body.data);
+    if (payload.mimeType === 'text/html') return stripHtml(raw);
+    return raw;
   }
 
   return '';

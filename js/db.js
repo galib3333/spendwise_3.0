@@ -2,8 +2,8 @@
 // Falls back to localStorage if IndexedDB is unavailable
 
 const DB_NAME = 'spendwise';
-const DB_VERSION = 3;
-const STORES = ['transactions', 'budgets', 'savingsGoals', 'recurringList', 'settings', 'businessProfile', 'businessTransactions', 'businessCategories', 'bankAccounts', 'bankTransactions'];
+const DB_VERSION = 4;
+const STORES = ['transactions', 'budgets', 'savingsGoals', 'recurringList', 'settings', 'businessProfile', 'businessTransactions', 'businessCategories', 'bankAccounts', 'bankTransactions', 'loans'];
 
 let db = null;
 let useIndexedDB = true;

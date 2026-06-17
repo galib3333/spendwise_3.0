@@ -222,7 +222,7 @@ describe('constants', () => {
   it('has 18 total categories', () => {
     expect(ALL_CATS).toHaveLength(18);
   });
-  it('has 6 payment methods', () => {
-    expect(Object.keys(PAYMENT_LABELS)).toHaveLength(6);
+  it('has 9 payment methods', () => {
+    expect(Object.keys(PAYMENT_LABELS)).toHaveLength(9);
   });
 });

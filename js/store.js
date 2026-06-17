@@ -24,7 +24,9 @@ let state = {
   businessCategories: [],
   // Banking state
   bankAccounts: [], // { id, provider, name, accountNumber, currentBalance, initialBalance, lastSynced, color }
-  bankTransactions: [] // parsed email transactions linked to accounts
+  bankTransactions: [], // parsed email transactions linked to accounts
+  // Loan state
+  loans: [] // { id, type, person, phone, amount, paid, rate, startDate, dueDate, status, notes, payments, createdAt, updatedAt }
 };
 
 let _storageMode = 'localStorage'; // 'indexeddb' | 'localStorage'
@@ -53,7 +55,7 @@ export async function initStore() {
     _storageMode = 'indexeddb';
 
     // Load from IndexedDB
-    const [txns, budgets, savings, recurring, bizProfile, bizTxns, bizCats, bankAccts, bankTxns] = await Promise.all([
+    const [txns, budgets, savings, recurring, bizProfile, bizTxns, bizCats, bankAccts, bankTxns, loansData] = await Promise.all([
       dbGetAll('transactions'),
       dbGetAll('budgets'),
       dbGetAll('savingsGoals'),
@@ -62,7 +64,8 @@ export async function initStore() {
       dbGetAll('businessTransactions'),
       dbGetAll('businessCategories'),
       dbGetAll('bankAccounts'),
-      dbGetAll('bankTransactions')
+      dbGetAll('bankTransactions'),
+      dbGetAll('loans')
     ]);
 
     state.transactions = txns || [];
@@ -74,6 +77,7 @@ export async function initStore() {
     state.businessCategories = bizCats || [];
     state.bankAccounts = bankAccts || [];
     state.bankTransactions = bankTxns || [];
+    state.loans = loansData || [];
 
     // Load settings
     const settingsKeys = ['currency', 'theme', 'dateFormat'];
@@ -98,6 +102,7 @@ export async function initStore() {
     state.businessCategories = lsLoad('businessCategories', []);
     state.bankAccounts = lsLoad('bankAccounts', []);
     state.bankTransactions = lsLoad('bankTransactions', []);
+    state.loans = lsLoad('loans', []);
   }
 }
 
@@ -120,6 +125,7 @@ async function persist() {
     if (_dirty.has('businessCategories'))   writes.push(dbPutAll('businessCategories', state.businessCategories));
     if (_dirty.has('bankAccounts'))         writes.push(dbPutAll('bankAccounts', state.bankAccounts));
     if (_dirty.has('bankTransactions'))     writes.push(dbPutAll('bankTransactions', state.bankTransactions));
+    if (_dirty.has('loans'))               writes.push(dbPutAll('loans', state.loans));
     if (writes.length) await Promise.all(writes);
     _dirty.clear();
   } else {
@@ -134,6 +140,7 @@ async function persist() {
     lsSave('businessCategories', state.businessCategories);
     lsSave('bankAccounts', state.bankAccounts);
     lsSave('bankTransactions', state.bankTransactions);
+    lsSave('loans', state.loans);
   }
 }
 
@@ -150,6 +157,7 @@ function persistSync() {
     lsSave('businessCategories', state.businessCategories);
     lsSave('bankAccounts', state.bankAccounts);
     lsSave('bankTransactions', state.bankTransactions);
+    lsSave('loans', state.loans);
   } else {
     persist().catch(err => {
       console.error('Persist failed:', err);
@@ -183,6 +191,7 @@ export function getBusinessTransactions() { return [...state.businessTransaction
 export function getBusinessCategories() { return [...state.businessCategories]; }
 export function getBankAccounts() { return [...state.bankAccounts]; }
 export function getBankTransactions() { return [...state.bankTransactions]; }
+export function getLoans() { return [...state.loans]; }
 
 // ===== GENERIC CRUD HELPERS =====
 function crudOps(key, stateKey) {
@@ -209,6 +218,7 @@ const businessTxns = crudOps('businessTransactions', 'businessTransactions');
 const businessCats = crudOps('businessCategories', 'businessCategories');
 const bankAccounts = crudOps('bankAccounts', 'bankAccounts');
 const bankTransactions = crudOps('bankTransactions', 'bankTransactions');
+const loans = crudOps('loans', 'loans');
 
 // ===== TRANSACTIONS =====
 export function addTransaction(data) { transactions.add(data); }
@@ -299,6 +309,11 @@ export function getBankTransactionsForAccount(accountId) {
   return state.bankTransactions.filter(t => t.bankAccountId === accountId);
 }
 
+// ===== LOANS =====
+export function addLoan(data) { loans.add(data); }
+export function updateLoan(id, data) { return loans.update(id, data); }
+export function deleteLoan(id) { return loans.remove(id); }
+
 // ===== BULK OPERATIONS =====
 export function addBulkTransactions(items) {
   state.transactions.push(...items);
@@ -316,11 +331,12 @@ export function replaceAllData(data) {
   if (data.businessCategories) state.businessCategories = data.businessCategories;
   if (data.bankAccounts) state.bankAccounts = data.bankAccounts;
   if (data.bankTransactions) state.bankTransactions = data.bankTransactions;
-  for (const k of ['transactions','budgets','savingsGoals','recurringList','businessProfile','businessTransactions','businessCategories','bankAccounts','bankTransactions']) _dirty.add(k);
+  if (data.loans) state.loans = data.loans;
+  for (const k of ['transactions','budgets','savingsGoals','recurringList','businessProfile','businessTransactions','businessCategories','bankAccounts','bankTransactions','loans']) _dirty.add(k);
   persistSync();
   notify('transactions'); notify('budgets'); notify('savingsGoals'); notify('recurringList');
   notify('businessProfile'); notify('businessTransactions'); notify('businessCategories');
-  notify('bankAccounts'); notify('bankTransactions');
+  notify('bankAccounts'); notify('bankTransactions'); notify('loans');
 }
 
 export function clearAllData() {
@@ -333,7 +349,8 @@ export function clearAllData() {
   state.businessCategories = [];
   state.bankAccounts = [];
   state.bankTransactions = [];
-  for (const k of ['transactions','budgets','savingsGoals','recurringList','businessProfile','businessTransactions','businessCategories','bankAccounts','bankTransactions']) _dirty.add(k);
+  state.loans = [];
+  for (const k of ['transactions','budgets','savingsGoals','recurringList','businessProfile','businessTransactions','businessCategories','bankAccounts','bankTransactions','loans']) _dirty.add(k);
   persistSync();
   // Clear security data
   localStorage.removeItem('sw_salt');
@@ -353,8 +370,9 @@ export function clearAllData() {
     dbClear('businessCategories');
     dbClear('bankAccounts');
     dbClear('bankTransactions');
+    dbClear('loans');
   }
   notify('transactions'); notify('budgets'); notify('savingsGoals'); notify('recurringList');
   notify('businessProfile'); notify('businessTransactions'); notify('businessCategories');
-  notify('bankAccounts'); notify('bankTransactions');
+  notify('bankAccounts'); notify('bankTransactions'); notify('loans');
 }

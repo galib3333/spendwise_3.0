@@ -15,6 +15,7 @@ import { detectProvider, parseEmailAuto } from '../banking/email-parser.js';
 import { formatBalance } from '../banking/balance-tracker.js';
 import '../banking/bkb-adapter.js';
 import '../banking/ebl-adapter.js';
+import '../banking/nagad-adapter.js';
 
 const ACCOUNT_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4'];
 
@@ -22,6 +23,7 @@ let _unsubscribeConnection = null;
 
 const PROVIDER_INFO = {
   bkash: { name: 'bKash', icon: '📱', color: '#e2136e' },
+  nagad: { name: 'Nagad', icon: '💰', color: '#f6921e' },
   ebl: { name: 'EBL', icon: '🏦', color: '#003087' },
 };
 
@@ -52,8 +54,8 @@ export function renderBanking(container) {
             <h3 style="margin:0 0 4px">Gmail Auto-Import</h3>
             <p class="text-sm text-muted" style="margin:0">
               ${connected
-                ? 'Connected. bKash and EBL emails are auto-imported.'
-                : 'Connect Gmail to auto-import bKash & EBL transactions.'}
+                ? 'Connected. bKash, Nagad and EBL emails are auto-imported.'
+                : 'Connect Gmail to auto-import bKash, Nagad & EBL transactions.'}
             </p>
             ${renderGmailStatus()}
           </div>
@@ -79,9 +81,9 @@ export function renderBanking(container) {
       <!-- Manual Paste Parser -->
       <div class="panel" style="margin-bottom:16px">
         <h3 style="margin:0 0 8px">Quick Import</h3>
-        <p class="text-sm text-muted" style="margin:0 0 8px">Paste a bKash or EBL SMS/email to auto-create a transaction.</p>
+        <p class="text-sm text-muted" style="margin:0 0 8px">Paste a bKash, Nagad or EBL SMS/email to auto-create a transaction.</p>
         <div class="input-group" style="margin-bottom:8px">
-          <textarea class="input" id="pasteText" rows="3" placeholder="Paste bKash/EBL SMS or email text here..." style="font-family:monospace;font-size:0.75rem"></textarea>
+          <textarea class="input" id="pasteText" rows="3" placeholder="Paste bKash/Nagad/EBL SMS or email text here..." style="font-family:monospace;font-size:0.75rem"></textarea>
         </div>
         <div class="flex gap-8">
           <select class="input" id="pasteAccount" style="max-width:200px">
@@ -98,7 +100,7 @@ export function renderBanking(container) {
         <div class="panel" style="text-align:center;padding:40px">
           <div style="font-size:2.5rem;margin-bottom:12px">🏦</div>
           <h3 style="margin:0 0 8px">No accounts yet</h3>
-          <p class="text-sm text-muted" style="margin:0 0 16px">Add your bKash or EBL account to start tracking.</p>
+          <p class="text-sm text-muted" style="margin:0 0 16px">Add your bKash, Nagad or EBL account to start tracking.</p>
           <button class="btn btn-primary" id="addAccountEmptyBtn">+ Add Account</button>
         </div>
       ` : `
@@ -129,6 +131,7 @@ export function renderBanking(container) {
           <label for="acctProvider">Provider</label>
           <select class="input" id="acctProvider">
             <option value="bkash">bKash</option>
+            <option value="nagad">Nagad</option>
             <option value="ebl">EBL</option>
             <option value="other">Other</option>
           </select>
@@ -323,9 +326,14 @@ function bindEvents(container, accounts, settings) {
     btn.textContent = 'Syncing...';
 
     let totalImported = 0;
+    let totalFetched = 0;
+    let totalErrors = 0;
+    const syncDetails = [];
     for (const acct of accounts) {
       try {
-        const { parsed } = await fetchAndParseEmails(acct.provider, 20);
+        const { parsed, errors, total } = await fetchAndParseEmails(acct.provider, 20);
+        totalFetched += total;
+        totalErrors += errors.length;
         const newTxns = parsed
           .filter(p => !allTxns.some(existing => existing.trxId === p.trxId && p.trxId))
           .map(p => ({
@@ -335,18 +343,29 @@ function bindEvents(container, accounts, settings) {
           }));
         if (newTxns.length) addBulkBankTransactions(newTxns);
         totalImported += newTxns.length;
+        syncDetails.push(`${acct.name}: ${total} fetched, ${newTxns.length} imported${errors.length ? `, ${errors.length} errors` : ''}`);
 
         // Update balance from latest
         const balance = await fetchLatestBalance(acct.provider);
         if (balance !== null) updateBankAccount(acct.id, { currentBalance: balance, lastSynced: new Date().toISOString() });
       } catch (e) {
         console.error(`Sync failed for ${acct.name}:`, e);
+        syncDetails.push(`${acct.name}: FAILED - ${e.message}`);
+        totalErrors++;
       }
     }
 
     btn.disabled = false;
     btn.textContent = 'Sync All';
-    toastSuccess(`Imported ${totalImported} new transactions`);
+    if (totalImported > 0) {
+      toastSuccess(`Imported ${totalImported} new transactions`);
+    } else if (totalFetched === 0) {
+      toastWarning(`No emails found. Check your EBL sender address or try pasting the email text manually.`);
+    } else if (totalErrors > 0) {
+      toastWarning(`Found ${totalFetched} emails but could not parse ${totalErrors}. Try pasting the email text manually.`);
+    } else {
+      toastWarning(`No new transactions to import. ${totalFetched} emails were already imported.`);
+    }
     renderBanking(container);
   });
 
@@ -362,7 +381,7 @@ function bindEvents(container, accounts, settings) {
       btn.textContent = 'Syncing...';
 
       try {
-        const { parsed } = await fetchAndParseEmails(acct.provider, 20);
+        const { parsed, errors, total } = await fetchAndParseEmails(acct.provider, 20);
         const existing = getBankTransactionsForAccount(accountId);
         const newTxns = parsed
           .filter(p => !existing.some(e => e.trxId === p.trxId && p.trxId))
@@ -372,7 +391,15 @@ function bindEvents(container, accounts, settings) {
         const balance = await fetchLatestBalance(acct.provider);
         if (balance !== null) updateBankAccount(accountId, { currentBalance: balance, lastSynced: new Date().toISOString() });
 
-        toastSuccess(`Imported ${newTxns.length} new transactions`);
+        if (newTxns.length > 0) {
+          toastSuccess(`Imported ${newTxns.length} new transactions`);
+        } else if (total === 0) {
+          toastWarning(`No emails found from ${acct.name}. Check the sender address matches your provider.`);
+        } else if (errors.length > 0) {
+          toastWarning(`Found ${total} emails but could not parse ${errors.length}. Try pasting the email text manually.`);
+        } else {
+          toastWarning(`No new transactions. All ${total} emails were already imported.`);
+        }
         renderBanking(container);
       } catch (e) {
         toastError(`Sync failed: ${e.message}`);
@@ -404,7 +431,7 @@ function bindEvents(container, accounts, settings) {
 
     const detected = detectProvider('', text);
     if (!detected) {
-      resultDiv.innerHTML = `<p class="text-sm" style="color:var(--red)">Could not detect bKash or EBL format. Please check the text.</p>`;
+      resultDiv.innerHTML = `<p class="text-sm" style="color:var(--red)">Could not detect bKash, Nagad or EBL format. Please check the text.</p>`;
       return;
     }
 
