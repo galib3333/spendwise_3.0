@@ -3,7 +3,7 @@ import { getSettings, updateSettings, clearAllData } from '../store.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess } from '../toast.js';
 import { confirmModal } from '../helpers.js';
-import { hasPIN, isLockEnabled, getLockTimeout, setLockTimeout, getPrivacyPolicy } from '../security.js';
+import { hasPIN, isLockEnabled, getLockTimeout, setLockTimeout, getPrivacyPolicy, hasRecoveryKey } from '../security.js';
 import { changePIN, disableLock, showLockScreen } from '../lockscreen.js';
 import { renderGmailStatus } from '../banking/gmail-auth.js';
 
@@ -88,6 +88,14 @@ export function renderSettings(container) {
         <div class="flex gap-8" id="pinActions" style="${pinSet ? '' : 'display:none'}">
           <button class="btn btn-secondary" id="changePinBtn">Change PIN</button>
           <button class="btn btn-secondary" id="removePinBtn" style="color:var(--red)">Remove PIN</button>
+        </div>
+
+        <div class="input-group" style="${pinSet ? '' : 'display:none'}">
+          <label>Recovery Key</label>
+          ${hasRecoveryKey()
+            ? '<p class="text-sm" style="color:var(--green)">✓ Recovery key is set</p><p class="text-sm text-muted" style="margin:2px 0 0">If you forget your PIN, you can use your recovery key to reset without losing data.</p>'
+            : '<p class="text-sm" style="color:var(--yellow)">⚠ No recovery key — if you forget your PIN, all data will be deleted</p><p class="text-sm text-muted" style="margin:2px 0 0">Set a new PIN to generate a recovery key.</p>'
+          }
         </div>
 
         <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">

@@ -8,6 +8,8 @@ const HASH_KEY = 'sw_pin_hash';
 const LOCK_KEY = 'sw_lock';
 const ATTEMPTS_KEY = 'sw_lock_attempts';
 const LOCK_TIMEOUT_KEY = 'sw_lock_timeout';
+const RECOVERY_KEY = 'sw_recovery_key';
+const RECOVERY_SALT_KEY = 'sw_recovery_salt';
 const SALT_BYTES = 16;
 const IV_BYTES = 12;
 const PBKDF2_ITERATIONS = 100000;
@@ -94,6 +96,60 @@ export function removePIN() {
   localStorage.removeItem(HASH_KEY);
   sessionStorage.removeItem(ATTEMPTS_KEY);
   setLockEnabled(false);
+}
+
+// ===== RECOVERY KEY =====
+const RECOVERY_KEY_LENGTH = 16;
+
+export function generateRecoveryKey() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const arr = new Uint8Array(RECOVERY_KEY_LENGTH);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b => chars[b % chars.length]).join('');
+}
+
+async function hashRecoveryKey(key, salt) {
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', encoder.encode(key), 'PBKDF2', false, ['deriveKey']
+  );
+  const derived = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: encoder.encode(salt), iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt']
+  );
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: new Uint8Array(IV_BYTES) },
+    derived,
+    encoder.encode('spendwise-recovery-verify')
+  );
+  return Array.from(new Uint8Array(encrypted)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+export function hasRecoveryKey() {
+  return localStorage.getItem(RECOVERY_KEY) !== null;
+}
+
+export async function setRecoveryKey(key) {
+  const salt = generateSalt();
+  const hash = await hashRecoveryKey(key, salt);
+  localStorage.setItem(RECOVERY_SALT_KEY, salt);
+  localStorage.setItem(RECOVERY_KEY, hash);
+}
+
+export async function verifyRecoveryKey(key) {
+  const salt = localStorage.getItem(RECOVERY_SALT_KEY);
+  const storedHash = localStorage.getItem(RECOVERY_KEY);
+  if(!salt || !storedHash) return false;
+  const hash = await hashRecoveryKey(key, salt);
+  return hash === storedHash;
+}
+
+export function removeRecoveryKey() {
+  localStorage.removeItem(RECOVERY_KEY);
+  localStorage.removeItem(RECOVERY_SALT_KEY);
 }
 
 // ===== LOCK STATE =====

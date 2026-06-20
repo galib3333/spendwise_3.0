@@ -27,6 +27,11 @@ describe('Security Module', () => {
     expect(typeof mod.isDataEncrypted).toBe('function');
     expect(typeof mod.encryptForStorage).toBe('function');
     expect(typeof mod.decryptFromStorage).toBe('function');
+    expect(typeof mod.generateRecoveryKey).toBe('function');
+    expect(typeof mod.setRecoveryKey).toBe('function');
+    expect(typeof mod.verifyRecoveryKey).toBe('function');
+    expect(typeof mod.hasRecoveryKey).toBe('function');
+    expect(typeof mod.removeRecoveryKey).toBe('function');
   });
 
   it('hasPIN returns false initially', async () => {
@@ -125,5 +130,42 @@ describe('Security Module', () => {
     const encrypted = { sw_enc_: true, iv: 'aabb', data: 'ccdd' };
     const result = await decryptFromStorage(encrypted);
     expect(result).toBeNull();
+  });
+
+  it('generateRecoveryKey returns 16-character alphanumeric string', async () => {
+    const { generateRecoveryKey } = await import('../js/security.js');
+    const key = generateRecoveryKey();
+    expect(key).toHaveLength(16);
+    expect(/^[A-Z2-9]+$/.test(key)).toBe(true);
+  });
+
+  it('generateRecoveryKey produces unique keys', async () => {
+    const { generateRecoveryKey } = await import('../js/security.js');
+    const keys = new Set();
+    for (let i = 0; i < 100; i++) keys.add(generateRecoveryKey());
+    expect(keys.size).toBe(100);
+  });
+
+  it('hasRecoveryKey returns false initially', async () => {
+    const { hasRecoveryKey } = await import('../js/security.js');
+    expect(hasRecoveryKey()).toBe(false);
+  });
+
+  it('setRecoveryKey and verifyRecoveryKey work correctly', async () => {
+    const { generateRecoveryKey, setRecoveryKey, verifyRecoveryKey, removeRecoveryKey } = await import('../js/security.js');
+    const key = generateRecoveryKey();
+    await setRecoveryKey(key);
+    expect(await verifyRecoveryKey(key)).toBe(true);
+    expect(await verifyRecoveryKey('WRONGKEYXXXXXX')).toBe(false);
+    removeRecoveryKey();
+  });
+
+  it('removeRecoveryKey clears stored key', async () => {
+    const { generateRecoveryKey, setRecoveryKey, hasRecoveryKey, removeRecoveryKey } = await import('../js/security.js');
+    const key = generateRecoveryKey();
+    await setRecoveryKey(key);
+    expect(hasRecoveryKey()).toBe(true);
+    removeRecoveryKey();
+    expect(hasRecoveryKey()).toBe(false);
   });
 });

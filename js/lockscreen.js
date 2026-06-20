@@ -5,7 +5,8 @@ import {
   isLockedOut, getRemainingLockoutMs,
   startLockTimer, stopLockTimer, resetLockTimer, getLockTimeout, setLockTimeout,
   getPrivacyPolicy,
-  setDataKey, clearDataKey
+  setDataKey, clearDataKey,
+  generateRecoveryKey, setRecoveryKey, hasRecoveryKey, verifyRecoveryKey, removeRecoveryKey
 } from './security.js';
 import { escapeHTML } from './sanitize.js';
 import { confirmModal } from './helpers.js';
@@ -118,24 +119,102 @@ function bindPinKeys() {
 // ===== FORGOT PIN =====
 
 async function handleForgotPin() {
-  const confirmed = await confirmModal(
-    'This will remove your PIN and delete ALL data (transactions, budgets, savings, etc.). This cannot be undone.',
-    { confirmText: 'Reset Everything', danger: true }
-  );
-  if (!confirmed) return;
+  const panel = getPanel();
+  if (!panel) return;
 
-  removePIN();
-  clearDataKey();
-  resetState();
-  setLocked(false);
-  hide();
-  stopLockTimer();
+  panel.className = 'lock-panel';
+  panel.innerHTML = `
+    ${lockSVG}
+    <h2>Forgot PIN?</h2>
+    <p>Choose how to reset:</p>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:16px;width:100%">
+      ${hasRecoveryKey() ? `
+        <button type="button" class="btn btn-primary" id="forgotRecoveryBtn" style="width:100%">Enter Recovery Key</button>
+      ` : ''}
+      <button type="button" class="btn btn-ghost" id="forgotResetBtn" style="width:100%;color:var(--red)">Reset Everything</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="forgotBackBtn" style="width:100%">Back to PIN</button>
+    </div>
+  `;
 
-  try {
-    clearAllData();
-  } catch(_e) { /* store may not be loaded yet */ }
+  document.getElementById('forgotRecoveryBtn')?.addEventListener('click', () => renderRecoveryInput());
+  document.getElementById('forgotResetBtn')?.addEventListener('click', async () => {
+    const confirmed = await confirmModal(
+      'This will remove your PIN and delete ALL data (transactions, budgets, savings, etc.). This cannot be undone.',
+      { confirmText: 'Reset Everything', danger: true }
+    );
+    if (!confirmed) return;
+    removePIN();
+    removeRecoveryKey();
+    clearDataKey();
+    resetState();
+    setLocked(false);
+    hide();
+    stopLockTimer();
+    try { clearAllData(); } catch(_e) {}
+    if (_onUnlock) _onUnlock();
+  });
+  document.getElementById('forgotBackBtn')?.addEventListener('click', () => {
+    resetState();
+    _step = 'enter';
+    renderEnterScreen();
+  });
+}
 
-  if (_onUnlock) _onUnlock();
+function renderRecoveryInput() {
+  const panel = getPanel();
+  if (!panel) return;
+
+  panel.className = 'lock-panel';
+  panel.innerHTML = `
+    ${unlockSVG}
+    <h2>Recovery Key</h2>
+    <p>Enter your 16-character recovery key:</p>
+    <div style="margin:16px 0;width:100%">
+      <input type="text" class="input" id="recoveryKeyInput" placeholder="XXXXXXXXXXXXXXXX"
+        style="font-family:var(--font-mono);font-size:1.1rem;text-align:center;letter-spacing:2px;text-transform:uppercase"
+        maxlength="16" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="lock-error" id="lockError"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;width:100%">
+      <button type="button" class="btn btn-primary" id="recoverySubmitBtn" style="width:100%">Recover</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="recoveryBackBtn" style="width:100%">Back</button>
+    </div>
+  `;
+
+  const input = document.getElementById('recoveryKeyInput');
+  input?.focus();
+
+  document.getElementById('recoverySubmitBtn')?.addEventListener('click', async () => {
+    const key = input?.value.trim().toUpperCase() || '';
+    const errorEl = document.getElementById('lockError');
+
+    if (key.length !== 16) {
+      if (errorEl) errorEl.textContent = 'Recovery key must be 16 characters';
+      return;
+    }
+
+    const valid = await verifyRecoveryKey(key);
+    if (valid) {
+      removePIN();
+      removeRecoveryKey();
+      clearDataKey();
+      resetState();
+      setLocked(false);
+      hide();
+      stopLockTimer();
+      if (_onUnlock) _onUnlock();
+    } else {
+      if (errorEl) errorEl.textContent = 'Invalid recovery key';
+      if (input) { input.value = ''; input.focus(); }
+    }
+  });
+
+  input?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('recoverySubmitBtn')?.click();
+    if (e.key === 'Escape') document.getElementById('recoveryBackBtn')?.click();
+  });
+
+  document.getElementById('recoveryBackBtn')?.addEventListener('click', () => handleForgotPin());
 }
 
 // ===== SCREEN RENDERERS =====
@@ -202,6 +281,32 @@ function renderConfirmScreen() {
     ${renderPinPad()}
   `;
   bindPinKeys();
+}
+
+function renderRecoveryScreen(key) {
+  const panel = getPanel();
+  panel.className = 'lock-panel';
+  panel.innerHTML = `
+    ${unlockSVG}
+    <h2>Save Your Recovery Key</h2>
+    <p style="color:var(--red);font-weight:600;margin-bottom:12px">If you forget your PIN, this key is the ONLY way to recover your data.</p>
+    <div style="background:var(--bg3);padding:16px;border-radius:8px;margin-bottom:12px;text-align:center">
+      <div style="font-family:var(--font-mono);font-size:1.4rem;letter-spacing:2px;font-weight:700;color:var(--accent);word-break:break-all">${escapeHTML(key)}</div>
+    </div>
+    <p class="text-sm text-muted" style="margin-bottom:16px">Write this down or save it in a password manager. You will not see it again.</p>
+    <div class="lock-actions" style="flex-direction:column;gap:8px">
+      <button type="button" class="btn btn-primary" id="recoverySavedBtn" style="width:100%">I've Saved My Key</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="recoveryCopyBtn" style="width:100%">Copy to Clipboard</button>
+    </div>
+  `;
+  document.getElementById('recoverySavedBtn')?.addEventListener('click', () => finish(true));
+  document.getElementById('recoveryCopyBtn')?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(key);
+      const btn = document.getElementById('recoveryCopyBtn');
+      if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy to Clipboard'; }, 2000); }
+    } catch(_e) { /* clipboard API may be blocked */ }
+  });
 }
 
 function renderChangeScreen() {
@@ -290,6 +395,14 @@ async function handlePinComplete() {
       if (_pin === _setupPin) {
         const ok = await setupPIN(_pin);
         if (ok) {
+          if (!hasRecoveryKey()) {
+            const recoveryKey = generateRecoveryKey();
+            await setRecoveryKey(recoveryKey);
+            _step = 'recovery';
+            _processing = false;
+            renderRecoveryScreen(recoveryKey);
+            return;
+          }
           finish(true);
           return;
         }

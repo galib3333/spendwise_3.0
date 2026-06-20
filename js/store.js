@@ -410,6 +410,8 @@ export function clearAllData() {
   localStorage.removeItem('sw_lock');
   localStorage.removeItem('sw_lock_attempts');
   localStorage.removeItem('sw_lock_timeout');
+  localStorage.removeItem('sw_recovery_key');
+  localStorage.removeItem('sw_recovery_salt');
   // Clear Gmail data
   localStorage.removeItem('sw_gmail_connected');
   // Clear IndexedDB if available
