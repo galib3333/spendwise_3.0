@@ -1,6 +1,6 @@
 # SpendWise 3.0 — Codebase Reference
 
-> Last updated: 2026-06-16. This file documents the architecture, conventions, known issues, and gotchas for future development.
+> Last updated: 2026-06-20. This file documents the architecture, conventions, known issues, and gotchas for future development.
 
 ---
 
@@ -155,6 +155,16 @@ export function renderX(container) {
 - All others use `{ keyPath: 'id' }`
 - `DB_VERSION` in `db.js` — bump when adding stores
 
+### Loan Payment Toggle
+- `LOAN_CATEGORY_IDS` in `utils.js` — `Set` of expense category IDs excluded from spending reports: `loan-repayment`, `debt-payment`, `lending`
+- `excludeLoanPayments` setting — defaults to `true` (exclude loan payments from spending reports)
+- `filterLoanExpenses(exp)` in `helpers.js` — filters out loan categories when toggle is on
+- `loanToggleHTML(settings)` in `helpers.js` — renders the toggle button ("🏦 Loans: Off" / "🏦 Loans: On")
+- `bindLoanToggle(container, rerenderFn)` in `helpers.js` — binds toggle click to flip setting and re-render
+- Applied in: `dashboard.js` (spending breakdown, pie chart, monthly trend), `reports.js` (weekly, monthly, yearly)
+- Transaction list always shows ALL transactions regardless of toggle
+- Health score, insights, budget alerts use full expense data (not affected by toggle)
+
 ---
 
 ## Known Issues & Gotchas
@@ -204,12 +214,12 @@ export function renderX(container) {
 |------|-------|
 | `app.js` | Nav strings (`PERSONAL_NAV`, `BUSINESS_NAV`) are large HTML templates |
 | `store.js` | Generic CRUD factory (`crudOps`) — add/update/delete for all entities; `clearAllData()` must clear ALL stores |
-| `helpers.js` | Shared UI: `renderCatOptions`, `createModal`, `ICONS` |
-| `utils.js` | Date helpers: `parseLocalDate`, `toDateStr`, `addDays`, `addMonths`; query helpers: `getExpenses`, `getIncome`, `sumByCategory` |
+| `helpers.js` | Shared UI: `renderCard`, `renderCatOptions`, `createModal`, `confirmModal`, `ICONS`, `filterLoanExpenses`, `loanToggleHTML`, `bindLoanToggle` |
+| `utils.js` | Date helpers: `parseLocalDate`, `toDateStr`, `addDays`, `addMonths`; query helpers: `getExpenses`, `getIncome`, `sumByCategory`; `LOAN_CATEGORY_IDS` (Set of expense categories excluded from reports); `getCat(id)` resolves legacy IDs via `LEGACY_CAT_MAP` |
 | `db.js` | `idbPutAll` clears store before insert — data loss risk on partial failure |
 | `charts.js` | `Math.max(...data)` can overflow with large arrays — use `reduce` |
-| `security.js` | PIN hash: SHA-256(salt + pin), encryption: AES-GCM with PBKDF2 |
-| `lockscreen.js` | `handlePinComplete` wraps async calls in try/catch to prevent UI freeze |
+| `security.js` | PIN hash: PBKDF2 (100k iterations) + AES-GCM verification, legacy SHA-256 fallback; data-at-rest encryption: AES-256-GCM; recovery key: 16-char alphanumeric, shown once, never stored |
+| `lockscreen.js` | `handlePinComplete` wraps async calls in try/catch to prevent UI freeze; shows recovery key after PIN setup; "Forgot PIN?" offers recovery key input |
 | `banking.js` | `_unsubscribeConnection` prevents listener stacking on re-render |
 | `gmail-auth.js` | No refresh token — user re-authenticates when token expires (~60min) |
 | `email-parser.js` | Registry pattern — adapters self-register via `registerAdapter()` |
@@ -219,16 +229,16 @@ export function renderX(container) {
 ## Refactoring Summary
 
 ### Shared Helpers (`js/helpers.js`)
+- `renderCard(label, value, colorClass)` — renders a stat card with label, value, and color
 - `renderCatOptions(cats, selected)` — renders category `<option>` elements
-- `renderExpenseCatOptions(selected)` — shortcut for expense categories
 - `bindPeriodNav(container, prefix, getOffset, setOffset, onNavigate)` — binds period nav
 - `bindDataActions(container, handlers)` — binds data-action buttons (edit/delete/sync)
+- `bindLoanToggle(container, rerenderFn)` — binds loan toggle button click handler
+- `filterLoanExpenses(exp)` — filters out loan categories when `excludeLoanPayments` setting is true
+- `loanToggleHTML(settings)` — renders the loan toggle button HTML
 - `createModal(html)` — creates dynamic modal overlay, returns `{ overlay, close }`
+- `confirmModal(message, opts)` — async confirmation dialog, returns Promise<boolean>
 - `ICONS` — exported SVG icon strings (edit, delete, plus, close, bank, search, filter, info, chevronLeft/Right, play, pause)
-  - `edit`, `delete`, `plus`, `close`, `bank`
-  - `search`, `filter`, `info`
-  - `chevronLeft`, `chevronRight`
-  - `play`, `pause`
 
 ### Date Helpers (`js/utils.js`)
 - `parseLocalDate(dateStr)` — creates Date from `YYYY-MM-DD` string (local time, not UTC)
@@ -236,6 +246,12 @@ export function renderX(container) {
 - `addDays(dateStr, days)` — adds N days to date string, returns new string
 - `addMonths(dateStr, months)` — adds N months to date string, returns new string
 - **NEVER use** `toISOString().slice(0,10)` — it returns UTC date and can shift to previous day in UTC+ timezones
+
+### Category Resolution (`js/utils.js`)
+- `getCat(id)` — resolves category ID to `{ name, icon, color }` object
+- Falls back to `LEGACY_CAT_MAP` for old category IDs (e.g., `'other'` → `'other-exp'`)
+- Unknown categories display as title-cased raw ID with 🏷️ icon (not "❓ Unknown")
+- Category migration in `store.js: initStore()` normalizes invalid IDs to `other-exp`/`other-inc` on startup
 
 ### Store CRUD Factory (`js/store.js`)
 ```js

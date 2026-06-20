@@ -1,7 +1,8 @@
 // ===== SHARED UI HELPERS =====
 // Reduces code duplication across page modules
 
-import { EXPENSE_CATS } from './utils.js';
+import { LOAN_CATEGORY_IDS } from './utils.js';
+import { getSettings, updateSettings } from './store.js';
 import { escapeHTML } from './sanitize.js';
 
 // ===== RENDER HELPERS =====
@@ -10,16 +11,29 @@ export function renderCard(label, value, colorClass = '') {
   return `<div class="card"><div class="card-label">${escapeHTML(label)}</div><div class="card-value ${colorClass}">${escapeHTML(String(value))}</div></div>`;
 }
 
-export function renderEmptyState(message) {
-  return `<div class="empty-state"><p>${escapeHTML(message)}</p></div>`;
-}
-
 export function renderCatOptions(cats, selected = '') {
   return cats.map(c => `<option value="${c.id}" ${c.id === selected ? 'selected' : ''}>${c.icon} ${escapeHTML(c.name)}</option>`).join('');
 }
 
-export function renderExpenseCatOptions(selected = '') {
-  return renderCatOptions(EXPENSE_CATS, selected);
+// ===== LOAN TOGGLE HELPERS =====
+
+export function filterLoanExpenses(exp) {
+  const settings = getSettings();
+  if (settings.excludeLoanPayments === false) return exp;
+  return exp.filter(t => !LOAN_CATEGORY_IDS.has(t.category));
+}
+
+export function loanToggleHTML(settings) {
+  const on = settings.excludeLoanPayments !== false;
+  return `<button class="btn btn-ghost btn-sm loan-toggle" id="loanToggle" title="${on ? 'Showing lifestyle spending only' : 'Including loan payments'}" style="font-size:0.75rem;opacity:0.85;white-space:nowrap">${on ? '🏦 Loans: Off' : '🏦 Loans: On'}</button>`;
+}
+
+export function bindLoanToggle(container, rerenderFn) {
+  const btn = container.querySelector('#loanToggle');
+  if (btn) btn.addEventListener('click', () => {
+    updateSettings('excludeLoanPayments', getSettings().excludeLoanPayments === false ? true : false);
+    rerenderFn();
+  });
 }
 
 // ===== EVENT BINDING HELPERS =====

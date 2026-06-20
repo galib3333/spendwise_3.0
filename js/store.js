@@ -137,7 +137,7 @@ export async function initStore() {
     }
 
     // Load settings
-    const settingsKeys = ['currency', 'theme', 'dateFormat'];
+    const settingsKeys = ['currency', 'theme', 'dateFormat', 'excludeLoanPayments'];
     for (const key of settingsKeys) {
       const val = await dbGetSetting(key);
       if (val !== undefined) state.settings[key] = val;

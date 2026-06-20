@@ -3,7 +3,7 @@ import { getTransactions, getSettings } from '../store.js';
 import { fmt, formatDate, getCat, getWeekDates, PAYMENT_LABELS, getExpenses as _getExpenses, getIncome as _getIncome, sumByCategory as _sumByCategory, getMonthStart, getMonthEnd, parseLocalDate } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { drawPieChart, drawBarChart, drawLineChart } from '../charts.js';
-import { renderCard, bindPeriodNav } from '../helpers.js';
+import { renderCard, bindPeriodNav, ICONS, filterLoanExpenses, loanToggleHTML, bindLoanToggle } from '../helpers.js';
 
 function getExpenses(start, end) { return _getExpenses(getTransactions(), start, end); }
 function getIncome(start, end) { return _getIncome(getTransactions(), start, end); }
@@ -31,7 +31,8 @@ export function renderWeekly(container) {
   const weekDates = getWeekDates(now);
   const weekStart = weekDates[0];
   const weekEnd = weekDates[6];
-  const exp = getExpenses(weekStart, weekEnd);
+  const rawExp = getExpenses(weekStart, weekEnd);
+  const exp = filterLoanExpenses(rawExp);
   const inc = getIncome(weekStart, weekEnd);
   const totalExp = exp.reduce((s, t) => s + t.amount, 0);
   const totalInc = inc.reduce((s, t) => s + t.amount, 0);
@@ -50,13 +51,14 @@ export function renderWeekly(container) {
           <p class="text-sm text-muted">${escapeHTML(formatDate(weekStart, settings.dateFormat))} — ${escapeHTML(formatDate(weekEnd, settings.dateFormat))}</p>
         </div>
         <div class="header-actions">
+          ${loanToggleHTML(settings)}
           <div class="period-nav">
             <button class="btn btn-ghost btn-sm btn-icon" id="weekPrev" aria-label="Previous week">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              ${ICONS.chevronLeft}
             </button>
             <span class="period-label">${periodLabel}</span>
             <button class="btn btn-ghost btn-sm btn-icon" id="weekNext" aria-label="Next week" ${weeklyOffset >= 0 ? 'disabled' : ''}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              ${ICONS.chevronRight}
             </button>
             ${weeklyOffset !== 0 ? '<button class="btn btn-ghost btn-sm" id="weekToday">Today</button>' : ''}
           </div>
@@ -120,6 +122,8 @@ export function renderWeekly(container) {
     () => renderWeekly(container)
   );
 
+  bindLoanToggle(container, () => renderWeekly(container));
+
   setTimeout(() => {
     drawBarChart('weeklyBar', dailyData, dailyLabels, '#e17055', settings.currency);
     drawPieChart('weeklyPie', catData, totalExp, settings.currency);
@@ -137,7 +141,8 @@ export function renderMonthly(container) {
   const month = now.getMonth();
   const monthStart = getMonthStart(monthlyOffset);
   const monthEnd = getMonthEnd(monthlyOffset);
-  const exp = getExpenses(monthStart, monthEnd);
+  const rawExp = getExpenses(monthStart, monthEnd);
+  const exp = filterLoanExpenses(rawExp);
   const inc = getIncome(monthStart, monthEnd);
   const totalExp = exp.reduce((s, t) => s + t.amount, 0);
   const totalInc = inc.reduce((s, t) => s + t.amount, 0);
@@ -166,13 +171,14 @@ export function renderMonthly(container) {
           <h2>Monthly Report — ${escapeHTML(monthName)}</h2>
         </div>
         <div class="header-actions">
+          ${loanToggleHTML(settings)}
           <div class="period-nav">
             <button class="btn btn-ghost btn-sm btn-icon" id="monthPrev" aria-label="Previous month">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              ${ICONS.chevronLeft}
             </button>
             <span class="period-label">${isCurrentMonth ? 'This Month' : monthName}</span>
             <button class="btn btn-ghost btn-sm btn-icon" id="monthNext" aria-label="Next month" ${isCurrentMonth ? 'disabled' : ''}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              ${ICONS.chevronRight}
             </button>
             ${!isCurrentMonth ? '<button class="btn btn-ghost btn-sm" id="monthToday">Today</button>' : ''}
           </div>
@@ -260,6 +266,8 @@ export function renderMonthly(container) {
     () => renderMonthly(container)
   );
 
+  bindLoanToggle(container, () => renderMonthly(container));
+
   setTimeout(() => {
     drawLineChart('monthlyLine', dailyData, dailyLabels, '#e17055');
     drawPieChart('monthlyPie', catData, totalExp, settings.currency);
@@ -275,7 +283,8 @@ export function renderYearly(container) {
   const year = now.getFullYear() + yearlyOffset;
   const yearStart = `${year}-01-01`;
   const yearEnd = `${year}-12-31`;
-  const exp = getExpenses(yearStart, yearEnd);
+  const rawExp = getExpenses(yearStart, yearEnd);
+  const exp = filterLoanExpenses(rawExp);
   const inc = getIncome(yearStart, yearEnd);
   const totalExp = exp.reduce((s, t) => s + t.amount, 0);
   const totalInc = inc.reduce((s, t) => s + t.amount, 0);
@@ -289,7 +298,7 @@ export function renderYearly(container) {
     const ms = `${year}-${String(i + 1).padStart(2, '0')}-01`;
     const meD = new Date(year, i + 1, 0);
     const me = `${meD.getFullYear()}-${String(meD.getMonth()+1).padStart(2,'0')}-${String(meD.getDate()).padStart(2,'0')}`;
-    expByMonth.push(getExpenses(ms, me).reduce((s, t) => s + t.amount, 0));
+    expByMonth.push(filterLoanExpenses(getExpenses(ms, me)).reduce((s, t) => s + t.amount, 0));
     incByMonth.push(getIncome(ms, me).reduce((s, t) => s + t.amount, 0));
     monthLabels.push(monthNames[i]);
   }
@@ -301,13 +310,14 @@ export function renderYearly(container) {
       <div class="header">
         <div><h2>Yearly Report — ${year}</h2></div>
         <div class="header-actions">
+          ${loanToggleHTML(settings)}
           <div class="period-nav">
             <button class="btn btn-ghost btn-sm btn-icon" id="yearPrev" aria-label="Previous year">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              ${ICONS.chevronLeft}
             </button>
             <span class="period-label">${year}</span>
             <button class="btn btn-ghost btn-sm btn-icon" id="yearNext" aria-label="Next year" ${isCurrentYear ? 'disabled' : ''}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              ${ICONS.chevronRight}
             </button>
             ${!isCurrentYear ? '<button class="btn btn-ghost btn-sm" id="yearToday">Today</button>' : ''}
           </div>
@@ -389,6 +399,8 @@ export function renderYearly(container) {
     (v) => { yearlyOffset = v; },
     () => renderYearly(container)
   );
+
+  bindLoanToggle(container, () => renderYearly(container));
 
   setTimeout(() => {
     drawBarChart('yearlyBar', expByMonth, monthLabels, '#6c5ce7', settings.currency);

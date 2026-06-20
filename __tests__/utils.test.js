@@ -3,7 +3,7 @@ import {
   uid, fmt, fmtShort, today, formatDate,
   getCat, getWeekDates, escapeCSV, parseCSVSimple,
   validateTransaction, validateBudget, validateGoal, validateRecurring,
-  sanitizeImportData, EXPENSE_CATS, INCOME_CATS, ALL_CATS, PAYMENT_LABELS
+  sanitizeImportData, EXPENSE_CATS, INCOME_CATS, ALL_CATS, PAYMENT_LABELS, LOAN_CATEGORY_IDS
 } from '../js/utils.js';
 
 describe('uid', () => {
@@ -233,5 +233,11 @@ describe('constants', () => {
   });
   it('has 11 payment methods', () => {
     expect(Object.keys(PAYMENT_LABELS)).toHaveLength(11);
+  });
+  it('has 3 loan category ids', () => {
+    expect(LOAN_CATEGORY_IDS.size).toBe(3);
+    expect(LOAN_CATEGORY_IDS.has('loan-repayment')).toBe(true);
+    expect(LOAN_CATEGORY_IDS.has('debt-payment')).toBe(true);
+    expect(LOAN_CATEGORY_IDS.has('lending')).toBe(true);
   });
 });

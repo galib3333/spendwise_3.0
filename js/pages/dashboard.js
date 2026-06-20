@@ -3,7 +3,7 @@ import { getTransactions, getBudgets, getSavingsGoals, getRecurringList, getSett
 import { fmt, today, getCat, getExpenses as _getExpenses, getIncome as _getIncome, sumByCategory as _sumByCategory, getMonthStart, getMonthEnd } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { drawPieChart, drawBarChart, drawHealthRing } from '../charts.js';
-import { renderCard, bindPeriodNav } from '../helpers.js';
+import { renderCard, bindPeriodNav, filterLoanExpenses, loanToggleHTML, bindLoanToggle } from '../helpers.js';
 
 function getExpenses(start, end) { return _getExpenses(getTransactions(), start, end); }
 function getIncome(start, end) { return _getIncome(getTransactions(), start, end); }
@@ -299,7 +299,8 @@ export function renderDashboard(container) {
   const isCurrentMonth = dashMonthOffset === 0;
   const monthName = displayDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  const thisMonthExp = getExpenses(monthStart, monthEnd);
+  const thisMonthExpRaw = getExpenses(monthStart, monthEnd);
+  const thisMonthExp = filterLoanExpenses(thisMonthExpRaw);
   const thisMonthInc = getIncome(monthStart, monthEnd);
   const totalExp = thisMonthExp.reduce((s, x) => s + x.amount, 0);
   const totalInc = thisMonthInc.reduce((s, x) => s + x.amount, 0);
@@ -320,6 +321,7 @@ export function renderDashboard(container) {
           <p class="text-sm text-muted">${now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
         <div class="header-actions">
+          ${loanToggleHTML(settings)}
           <div class="period-nav">
             <button class="btn btn-ghost btn-sm btn-icon" id="dashPrev" aria-label="Previous month">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
@@ -544,6 +546,8 @@ export function renderDashboard(container) {
     () => renderDashboard(container)
   );
 
+  bindLoanToggle(container, () => renderDashboard(container));
+
   setTimeout(() => {
     drawHealthRing('healthRing', score);
     drawPieChart('dashPie', catData, totalExp, settings.currency);
@@ -553,7 +557,7 @@ export function renderDashboard(container) {
       const d = new Date(displayDate.getFullYear(), displayDate.getMonth() - i, 1);
       const ms = getMonthStart(-i);
       const me = getMonthEnd(-i);
-      last6.push(getExpenses(ms, me).reduce((s, x) => s + x.amount, 0));
+      last6.push(filterLoanExpenses(getExpenses(ms, me)).reduce((s, x) => s + x.amount, 0));
       labels.push(d.toLocaleDateString('en-US', { month: 'short' }));
     }
     drawBarChart('dashBar', last6, labels, '#6c5ce7', settings.currency);
