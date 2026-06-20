@@ -44,6 +44,14 @@ async function hashPIN(pin, salt) {
   return Array.from(new Uint8Array(encrypted)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// Legacy hash for migration from old format
+async function hashPINLegacy(pin, salt) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(pin + salt);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 export async function setupPIN(pin) {
   if(!pin || pin.length < 4 || pin.length > 8) return false;
   if(!/^\d+$/.test(pin)) return false;
@@ -59,11 +67,24 @@ export async function verifyPIN(pin) {
   const salt = localStorage.getItem(SALT_KEY);
   const storedHash = localStorage.getItem(HASH_KEY);
   if(!salt || !storedHash) return false;
+
+  // Try new PBKDF2 hash first
   const hash = await hashPIN(pin, salt);
   if(hash === storedHash) {
     resetAttempts();
     return true;
   }
+
+  // Fallback: try legacy SHA-256 hash for migration
+  const legacyHash = await hashPINLegacy(pin, salt);
+  if(legacyHash === storedHash) {
+    // Migrate to new PBKDF2 hash
+    const newHash = await hashPIN(pin, salt);
+    localStorage.setItem(HASH_KEY, newHash);
+    resetAttempts();
+    return true;
+  }
+
   incrementAttempts();
   return false;
 }

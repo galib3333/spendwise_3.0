@@ -8,6 +8,7 @@ import {
   setDataKey, clearDataKey
 } from './security.js';
 import { escapeHTML } from './sanitize.js';
+import { confirmModal } from './helpers.js';
 
 const MAX_PIN = 8;
 const MIN_PIN = 4;
@@ -113,6 +114,30 @@ function bindPinKeys() {
   }, { signal });
 }
 
+// ===== FORGOT PIN =====
+
+async function handleForgotPin() {
+  const confirmed = await confirmModal(
+    'This will remove your PIN and delete ALL data (transactions, budgets, savings, etc.). This cannot be undone.',
+    { confirmText: 'Reset Everything', danger: true }
+  );
+  if (!confirmed) return;
+
+  removePIN();
+  clearDataKey();
+  resetState();
+  setLocked(false);
+  hide();
+  stopLockTimer();
+
+  try {
+    const { clearAllData } = await import('../store.js');
+    clearAllData();
+  } catch(_e) { /* store may not be loaded yet */ }
+
+  if (_onUnlock) _onUnlock();
+}
+
 // ===== SCREEN RENDERERS =====
 
 function renderEnterScreen() {
@@ -129,11 +154,13 @@ function renderEnterScreen() {
     </div>
     ${renderPinPad()}
     <div class="lock-footer">
+      <button type="button" id="lockForgotBtn" style="color:var(--red);font-size:0.75rem">Forgot PIN?</button>
       <button type="button" id="lockPrivacyLink">Privacy Policy</button>
     </div>
   `;
   bindPinKeys();
   document.getElementById('lockPrivacyLink')?.addEventListener('click', showPrivacyModal);
+  document.getElementById('lockForgotBtn')?.addEventListener('click', handleForgotPin);
   document.getElementById('lockSubmitBtn')?.addEventListener('click', () => {
     if (!_processing && _pin.length >= MIN_PIN) handlePinComplete();
   });
