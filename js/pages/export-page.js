@@ -3,7 +3,7 @@ import { getTransactions, getBudgets, getSavingsGoals, getRecurringList, addBulk
 import { today, fmt, getCat, escapeCSV, parseCSVSimple, detectBankFormat, mapCSVRow, sanitizeImportData, uid, getMonthStart, getMonthEnd } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastError } from '../toast.js';
-import { encryptData, decryptData, hasPIN, verifyPIN } from '../security.js';
+import { encryptData, decryptData, hasPIN, verifyPIN, setDataKey, isDataEncrypted } from '../security.js';
 
 function download(content, filename, type) {
   const blob = new Blob([content], { type });
@@ -136,7 +136,23 @@ function exportRecurringCSV() {
   toastSuccess('Recurring expenses CSV exported');
 }
 
-function exportJSON() {
+async function exportJSON() {
+  if(hasPIN() && !isDataEncrypted()) {
+    const pin = await promptPassword({
+      title: 'Verify PIN',
+      message: 'Enter your lock screen PIN to export data:',
+      hint: 'PIN is required to ensure you are the data owner.',
+      onValidate: async (val) => {
+        if(!val) return 'PIN is required';
+        const valid = await verifyPIN(val);
+        if(!valid) return 'Incorrect PIN';
+        await setDataKey(val);
+        return null;
+      }
+    });
+    if(pin === null) return;
+  }
+
   const data = {
     transactions: getTransactions(),
     budgets: getBudgets(),

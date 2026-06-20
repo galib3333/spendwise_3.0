@@ -7,6 +7,7 @@ import {
   dbGetSetting, dbSetSetting, isIndexedDBAvailable
 } from './db.js';
 import { toastError } from './toast.js';
+import { isDataEncrypted, encryptForStorage, decryptFromStorage } from './security.js';
 
 const STORAGE_PREFIX = 'sw_';
 const listeners = new Map();
@@ -32,10 +33,27 @@ let state = {
 let _storageMode = 'localStorage'; // 'indexeddb' | 'localStorage'
 const _dirty = new Set();
 
-// ===== PERSISTENCE (localStorage fallback) =====
+// ===== PERSISTENCE (localStorage fallback with optional encryption) =====
 function lsLoad(key, def) {
-  try { return JSON.parse(localStorage.getItem(STORAGE_PREFIX + key)) || def; }
-  catch { return def; }
+  try {
+    const raw = localStorage.getItem(STORAGE_PREFIX + key);
+    if (!raw) return def;
+    const parsed = JSON.parse(raw);
+    return parsed;
+  } catch { return def; }
+}
+
+async function lsLoadDecrypted(key, def) {
+  try {
+    const raw = localStorage.getItem(STORAGE_PREFIX + key);
+    if (!raw) return def;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed[Object.keys(parsed)[0]]?.enc) {
+      const decrypted = await decryptFromStorage(parsed);
+      return decrypted || def;
+    }
+    return parsed;
+  } catch { return def; }
 }
 
 function lsSave(key, val) {
@@ -43,6 +61,17 @@ function lsSave(key, val) {
     localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(val));
   } catch (e) {
     console.warn('localStorage save failed:', e);
+  }
+}
+
+async function lsSaveEncrypted(key, val) {
+  if (!isDataEncrypted()) { lsSave(key, val); return; }
+  try {
+    const encrypted = await encryptForStorage(val);
+    localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(encrypted));
+  } catch (e) {
+    console.warn('Encrypted localStorage save failed:', e);
+    lsSave(key, val);
   }
 }
 
@@ -90,19 +119,19 @@ export async function initStore() {
     if (savedMode) state.appMode = savedMode;
   } else {
     _storageMode = 'localStorage';
-    // Fallback to localStorage
-    state.transactions = lsLoad('transactions', []);
-    state.budgets = lsLoad('budgets', []);
-    state.savingsGoals = lsLoad('savings', []);
-    state.recurringList = lsLoad('recurring', []);
-    state.settings = lsLoad('settings', state.settings);
-    state.appMode = lsLoad('appMode', 'personal');
-    state.businessProfile = lsLoad('businessProfile', null);
-    state.businessTransactions = lsLoad('businessTransactions', []);
-    state.businessCategories = lsLoad('businessCategories', []);
-    state.bankAccounts = lsLoad('bankAccounts', []);
-    state.bankTransactions = lsLoad('bankTransactions', []);
-    state.loans = lsLoad('loans', []);
+    // Fallback to localStorage (with decryption if data key is available)
+    state.transactions = await lsLoadDecrypted('transactions', []);
+    state.budgets = await lsLoadDecrypted('budgets', []);
+    state.savingsGoals = await lsLoadDecrypted('savings', []);
+    state.recurringList = await lsLoadDecrypted('recurring', []);
+    state.settings = await lsLoadDecrypted('settings', state.settings);
+    state.appMode = await lsLoadDecrypted('appMode', 'personal');
+    state.businessProfile = await lsLoadDecrypted('businessProfile', null);
+    state.businessTransactions = await lsLoadDecrypted('businessTransactions', []);
+    state.businessCategories = await lsLoadDecrypted('businessCategories', []);
+    state.bankAccounts = await lsLoadDecrypted('bankAccounts', []);
+    state.bankTransactions = await lsLoadDecrypted('bankTransactions', []);
+    state.loans = await lsLoadDecrypted('loans', []);
   }
 }
 
@@ -129,35 +158,56 @@ async function persist() {
     if (writes.length) await Promise.all(writes);
     _dirty.clear();
   } else {
-    lsSave('transactions', state.transactions);
-    lsSave('budgets', state.budgets);
-    lsSave('savings', state.savingsGoals);
-    lsSave('recurring', state.recurringList);
-    lsSave('settings', state.settings);
-    lsSave('appMode', state.appMode);
-    lsSave('businessProfile', state.businessProfile);
-    lsSave('businessTransactions', state.businessTransactions);
-    lsSave('businessCategories', state.businessCategories);
-    lsSave('bankAccounts', state.bankAccounts);
-    lsSave('bankTransactions', state.bankTransactions);
-    lsSave('loans', state.loans);
+    const savePromises = [];
+    if (_dirty.has('transactions'))         savePromises.push(lsSaveEncrypted('transactions', state.transactions));
+    if (_dirty.has('budgets'))              savePromises.push(lsSaveEncrypted('budgets', state.budgets));
+    if (_dirty.has('savingsGoals'))         savePromises.push(lsSaveEncrypted('savings', state.savingsGoals));
+    if (_dirty.has('recurringList'))        savePromises.push(lsSaveEncrypted('recurring', state.recurringList));
+    if (_dirty.has('settings'))             savePromises.push(lsSaveEncrypted('settings', state.settings));
+    if (_dirty.has('appMode'))              savePromises.push(lsSaveEncrypted('appMode', state.appMode));
+    if (_dirty.has('businessProfile'))      savePromises.push(lsSaveEncrypted('businessProfile', state.businessProfile));
+    if (_dirty.has('businessTransactions')) savePromises.push(lsSaveEncrypted('businessTransactions', state.businessTransactions));
+    if (_dirty.has('businessCategories'))   savePromises.push(lsSaveEncrypted('businessCategories', state.businessCategories));
+    if (_dirty.has('bankAccounts'))         savePromises.push(lsSaveEncrypted('bankAccounts', state.bankAccounts));
+    if (_dirty.has('bankTransactions'))     savePromises.push(lsSaveEncrypted('bankTransactions', state.bankTransactions));
+    if (_dirty.has('loans'))               savePromises.push(lsSaveEncrypted('loans', state.loans));
+    if (savePromises.length) await Promise.all(savePromises);
+    _dirty.clear();
   }
 }
 
 function persistSync() {
   if (_storageMode !== 'indexeddb') {
-    lsSave('transactions', state.transactions);
-    lsSave('budgets', state.budgets);
-    lsSave('savings', state.savingsGoals);
-    lsSave('recurring', state.recurringList);
-    lsSave('settings', state.settings);
-    lsSave('appMode', state.appMode);
-    lsSave('businessProfile', state.businessProfile);
-    lsSave('businessTransactions', state.businessTransactions);
-    lsSave('businessCategories', state.businessCategories);
-    lsSave('bankAccounts', state.bankAccounts);
-    lsSave('bankTransactions', state.bankTransactions);
-    lsSave('loans', state.loans);
+    // Fire-and-forget async encrypted saves for localStorage
+    if (isDataEncrypted()) {
+      const savePromises = [];
+      if (_dirty.has('transactions'))         savePromises.push(lsSaveEncrypted('transactions', state.transactions));
+      if (_dirty.has('budgets'))              savePromises.push(lsSaveEncrypted('budgets', state.budgets));
+      if (_dirty.has('savingsGoals'))         savePromises.push(lsSaveEncrypted('savings', state.savingsGoals));
+      if (_dirty.has('recurringList'))        savePromises.push(lsSaveEncrypted('recurring', state.recurringList));
+      if (_dirty.has('settings'))             savePromises.push(lsSaveEncrypted('settings', state.settings));
+      if (_dirty.has('appMode'))              savePromises.push(lsSaveEncrypted('appMode', state.appMode));
+      if (_dirty.has('businessProfile'))      savePromises.push(lsSaveEncrypted('businessProfile', state.businessProfile));
+      if (_dirty.has('businessTransactions')) savePromises.push(lsSaveEncrypted('businessTransactions', state.businessTransactions));
+      if (_dirty.has('businessCategories'))   savePromises.push(lsSaveEncrypted('businessCategories', state.businessCategories));
+      if (_dirty.has('bankAccounts'))         savePromises.push(lsSaveEncrypted('bankAccounts', state.bankAccounts));
+      if (_dirty.has('bankTransactions'))     savePromises.push(lsSaveEncrypted('bankTransactions', state.bankTransactions));
+      if (_dirty.has('loans'))               savePromises.push(lsSaveEncrypted('loans', state.loans));
+      if (savePromises.length) Promise.all(savePromises).catch(e => console.error('Encrypted sync save failed:', e));
+    } else {
+      lsSave('transactions', state.transactions);
+      lsSave('budgets', state.budgets);
+      lsSave('savings', state.savingsGoals);
+      lsSave('recurring', state.recurringList);
+      lsSave('settings', state.settings);
+      lsSave('appMode', state.appMode);
+      lsSave('businessProfile', state.businessProfile);
+      lsSave('businessTransactions', state.businessTransactions);
+      lsSave('businessCategories', state.businessCategories);
+      lsSave('bankAccounts', state.bankAccounts);
+      lsSave('bankTransactions', state.bankTransactions);
+      lsSave('loans', state.loans);
+    }
   } else {
     persist().catch(err => {
       console.error('Persist failed:', err);

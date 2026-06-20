@@ -22,6 +22,11 @@ describe('Security Module', () => {
     expect(typeof mod.setLockTimeout).toBe('function');
     expect(typeof mod.getLockTimeout).toBe('function');
     expect(typeof mod.getPrivacyPolicy).toBe('function');
+    expect(typeof mod.setDataKey).toBe('function');
+    expect(typeof mod.clearDataKey).toBe('function');
+    expect(typeof mod.isDataEncrypted).toBe('function');
+    expect(typeof mod.encryptForStorage).toBe('function');
+    expect(typeof mod.decryptFromStorage).toBe('function');
   });
 
   it('hasPIN returns false initially', async () => {
@@ -87,5 +92,38 @@ describe('Security Module', () => {
     expect(typeof result.salt).toBe('string');
     expect(typeof result.iv).toBe('string');
     expect(typeof result.data).toBe('string');
+  });
+
+  it('isDataEncrypted returns false initially', async () => {
+    const { isDataEncrypted } = await import('../js/security.js');
+    expect(isDataEncrypted()).toBe(false);
+  });
+
+  it('clearDataKey resets encryption state', async () => {
+    const { clearDataKey, isDataEncrypted } = await import('../js/security.js');
+    clearDataKey();
+    expect(isDataEncrypted()).toBe(false);
+  });
+
+  it('encryptForStorage passes through when no data key', async () => {
+    const { encryptForStorage, clearDataKey } = await import('../js/security.js');
+    clearDataKey();
+    const data = { test: 'value' };
+    const result = await encryptForStorage(data);
+    expect(result).toEqual(data);
+  });
+
+  it('decryptFromStorage passes through non-encrypted data', async () => {
+    const { decryptFromStorage } = await import('../js/security.js');
+    const data = { test: 'value' };
+    const result = await decryptFromStorage(data);
+    expect(result).toEqual(data);
+  });
+
+  it('decryptFromStorage returns null for encrypted data without key', async () => {
+    const { decryptFromStorage } = await import('../js/security.js');
+    const encrypted = { sw_enc_: true, iv: 'aabb', data: 'ccdd' };
+    const result = await decryptFromStorage(encrypted);
+    expect(result).toBeNull();
   });
 });

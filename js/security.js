@@ -26,9 +26,22 @@ function generateSalt() {
 
 async function hashPIN(pin, salt) {
   const encoder = new TextEncoder();
-  const data = encoder.encode(pin + salt);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', encoder.encode(pin), 'PBKDF2', false, ['deriveKey']
+  );
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: encoder.encode(salt), iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt']
+  );
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: new Uint8Array(IV_BYTES) },
+    key,
+    encoder.encode('spendwise-pin-verify')
+  );
+  return Array.from(new Uint8Array(encrypted)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 export async function setupPIN(pin) {
@@ -58,7 +71,7 @@ export async function verifyPIN(pin) {
 export function removePIN() {
   localStorage.removeItem(SALT_KEY);
   localStorage.removeItem(HASH_KEY);
-  localStorage.removeItem(ATTEMPTS_KEY);
+  sessionStorage.removeItem(ATTEMPTS_KEY);
   setLockEnabled(false);
 }
 
@@ -75,17 +88,17 @@ let _isLocked = true;
 export function isLocked() { return _isLocked && isLockEnabled(); }
 export function setLocked(val) { _isLocked = val; }
 
-// ===== ATTEMPT TRACKING =====
-const MAX_ATTEMPTS = 5;
-const LOCKOUT_MS = 30000;
+// ===== ATTEMPT TRACKING (sessionStorage — clears on tab close) =====
+const MAX_ATTEMPTS = 10;
+const LOCKOUT_MS = 5 * 60 * 1000;
 
 function getAttempts() {
-  try { return JSON.parse(localStorage.getItem(ATTEMPTS_KEY)) || { count: 0, lockedUntil: 0 }; }
+  try { return JSON.parse(sessionStorage.getItem(ATTEMPTS_KEY)) || { count: 0, lockedUntil: 0 }; }
   catch { return { count: 0, lockedUntil: 0 }; }
 }
 
 function saveAttempts(data) {
-  localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(data));
+  sessionStorage.setItem(ATTEMPTS_KEY, JSON.stringify(data));
 }
 
 function incrementAttempts() {
@@ -164,6 +177,72 @@ export async function decryptData(encrypted, password) {
   }
 }
 
+// ===== DATA-AT-REST ENCRYPTION =====
+const ENC_PREFIX = 'sw_enc_';
+let _dataKey = null;
+
+export function deriveDataKey(pin, salt) {
+  return crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(pin),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  ).then(keyMaterial => crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: new TextEncoder().encode(salt), iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: AES_KEY_LENGTH },
+    false,
+    ['encrypt', 'decrypt']
+  ));
+}
+
+export async function setDataKey(pin) {
+  const salt = localStorage.getItem(SALT_KEY);
+  if(!salt || !hasPIN()) { _dataKey = null; return false; }
+  try {
+    _dataKey = await deriveDataKey(pin, salt);
+    return true;
+  } catch { return false; }
+}
+
+export function clearDataKey() { _dataKey = null; }
+
+export function isDataEncrypted() { return _dataKey !== null; }
+
+export async function encryptForStorage(data) {
+  if(!_dataKey) return data;
+  const iv = new Uint8Array(IV_BYTES);
+  crypto.getRandomValues(iv);
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    _dataKey,
+    new TextEncoder().encode(JSON.stringify(data))
+  );
+  return {
+    [ENC_PREFIX]: true,
+    iv: Array.from(iv).map(b => b.toString(16).padStart(2, '0')).join(''),
+    data: Array.from(new Uint8Array(encrypted)).map(b => b.toString(16).padStart(2, '0')).join('')
+  };
+}
+
+export async function decryptFromStorage(encrypted) {
+  if(!encrypted || !encrypted[ENC_PREFIX]) return encrypted;
+  if(!_dataKey) return null;
+  try {
+    const iv = new Uint8Array(encrypted.iv.match(/.{2}/g).map(b => parseInt(b, 16)));
+    const data = new Uint8Array(encrypted.data.match(/.{2}/g).map(b => parseInt(b, 16)));
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      _dataKey,
+      data
+    );
+    return JSON.parse(new TextDecoder().decode(decrypted));
+  } catch {
+    return null;
+  }
+}
+
 // ===== AUTO-LOCK TIMER =====
 let _lockTimer = null;
 let _lockTimeoutMs = 5 * 60 * 1000;
@@ -214,6 +293,7 @@ SpendWise does **NOT** collect, store, or transmit any personal data to external
 ## Security
 - Optional PIN lock to protect your data
 - Optional encryption of exported backup files
+- Optional data-at-rest encryption (requires lock screen PIN)
 - Data remains entirely on your device
 
 ## Permissions

@@ -4,7 +4,8 @@ import {
   isLockEnabled, setLocked,
   isLockedOut, getRemainingLockoutMs,
   startLockTimer, stopLockTimer, resetLockTimer, getLockTimeout, setLockTimeout,
-  getPrivacyPolicy
+  getPrivacyPolicy,
+  setDataKey, clearDataKey
 } from './security.js';
 import { escapeHTML } from './sanitize.js';
 
@@ -290,6 +291,7 @@ async function handlePinComplete() {
       }
       const ok = await verifyPIN(_pin);
       if (ok) {
+        await setDataKey(_pin);
         finish(true);
         return;
       }
@@ -364,6 +366,7 @@ export function showLockScreen(onUnlock) {
 export function lockApp() {
   _onUnlock = null;
   resetState();
+  clearDataKey();
   _step = 'enter';
   renderEnterScreen();
   show(null);
@@ -391,6 +394,7 @@ export function changePIN(onComplete) {
 export function disableLock() {
   removePIN();
   resetState();
+  clearDataKey();
   setLocked(false);
   hide();
   stopLockTimer();
