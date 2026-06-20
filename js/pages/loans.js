@@ -446,7 +446,7 @@ function bindEvents(container, loans, currency) {
           amount: installmentAmt,
           description: `${type === 'lent' ? 'Loan received' : 'Loan payment'} - ${displayName}`,
           frequency,
-          category: 'other',
+          category: 'loan-repayment',
           nextDate: advanceDate(startDate, frequency),
           endDate: dueDate || null,
         };
@@ -484,7 +484,7 @@ function bindEvents(container, loans, currency) {
           type: 'income',
           amount: principal,
           date: startDate,
-          category: 'other',
+          category: 'loan-received',
           payment: source === 'person' ? 'cash' : source,
           description: notes ? `Borrowed from ${displayName} - ${notes}` : `Borrowed from ${displayName}`,
           tags: ['loan'],
@@ -497,7 +497,7 @@ function bindEvents(container, loans, currency) {
           type: 'expense',
           amount: principal,
           date: startDate,
-          category: 'other',
+          category: 'lending',
           payment: source === 'person' ? 'cash' : source,
           description: notes ? `Lent to ${displayName} - ${notes}` : `Lent to ${displayName}`,
           tags: ['loan'],
@@ -508,6 +508,7 @@ function bindEvents(container, loans, currency) {
 
       if (paid > 0) {
         const payTxnType = type === 'borrowed' ? 'expense' : 'income';
+        const payCategory = type === 'borrowed' ? 'loan-repayment' : 'debt-received';
         const payDesc = type === 'borrowed'
           ? `Loan repayment to ${displayName}`
           : `Loan repayment from ${displayName}`;
@@ -516,7 +517,7 @@ function bindEvents(container, loans, currency) {
           type: payTxnType,
           amount: paid,
           date: startDate,
-          category: 'other',
+          category: payCategory,
           payment: source === 'person' ? 'cash' : source,
           description: payDesc,
           tags: ['loan'],
@@ -533,7 +534,7 @@ function bindEvents(container, loans, currency) {
           amount: installmentAmt,
           description: `${type === 'lent' ? 'Loan received' : 'Loan payment'} - ${displayName}`,
           frequency,
-          category: 'other',
+          category: 'loan-repayment',
           startDate,
           nextDate: advanceDate(startDate, frequency),
           endDate: dueDate || null,
@@ -572,6 +573,7 @@ function bindEvents(container, loans, currency) {
     });
 
     const txnType = loan.type === 'lent' ? 'income' : 'expense';
+    const txnCategory = loan.type === 'lent' ? 'debt-received' : 'loan-repayment';
     const desc = loan.type === 'lent'
       ? `Loan repayment from ${loan.person || 'someone'}`
       : `Loan payment to ${loan.person || 'someone'}`;
@@ -580,7 +582,7 @@ function bindEvents(container, loans, currency) {
       type: txnType,
       amount,
       date,
-      category: 'other',
+      category: txnCategory,
       payment: loan.source === 'person' ? 'cash' : loan.source,
       description: note ? `${desc} - ${note}` : desc,
       tags: ['loan'],
