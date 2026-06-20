@@ -10,7 +10,7 @@ import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastError, toastWarning } from '../toast.js';
 import { navigate } from '../router.js';
 
-const PAYMENT_LABELS = { cash: 'Cash', card: 'Card', bank: 'Bank Transfer', mobile: 'Mobile Payment' };
+const PAYMENT_LABELS = { cash: 'Cash', card: 'Card', bank: 'Bank Transfer', mobile: 'Mobile Payment', bkash: 'bKash', nagad: 'Nagad', rocket: 'Rocket' };
 
 const BUSINESS_TYPES = [
   { id: 'retail', name: 'Retail / Departmental Store', icon: '🏬' },

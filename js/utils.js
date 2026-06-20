@@ -11,6 +11,9 @@ export const EXPENSE_CATS = [
   {id:'groceries',name:'Groceries',icon:'🛒',color:'#8bc34a'},
   {id:'subscriptions',name:'Subscriptions',icon:'📱',color:'#673ab7'},
   {id:'personal',name:'Personal Care',icon:'💇',color:'#ffeb3b'},
+  {id:'loan-repayment',name:'Loan Repayment',icon:'💸',color:'#b71540'},
+  {id:'debt-payment',name:'Debt Payment',icon:'📝',color:'#e55039'},
+  {id:'lending',name:'Money Lent',icon:'🤝',color:'#0c2461'},
   {id:'other-exp',name:'Other Expense',icon:'📦',color:'#607d8b'}
 ];
 export const INCOME_CATS = [
@@ -18,11 +21,13 @@ export const INCOME_CATS = [
   {id:'freelance',name:'Freelance',icon:'💻',color:'#3f51b5'},
   {id:'investment',name:'Investment',icon:'📈',color:'#795548'},
   {id:'business',name:'Business',icon:'🏢',color:'#ffc107'},
+  {id:'loan-received',name:'Loan Received',icon:'🏦',color:'#0a3d62'},
+  {id:'debt-received',name:'Debt Received',icon:'💵',color:'#6a89cc'},
   {id:'gift',name:'Gift',icon:'🎁',color:'#03a9f4'},
   {id:'other-inc',name:'Other Income',icon:'💎',color:'#9e9e9e'}
 ];
 export const ALL_CATS = [...EXPENSE_CATS, ...INCOME_CATS];
-export const PAYMENT_LABELS = {cash:'Cash',card:'Debit Card',credit:'Credit Card',upi:'UPI',bank:'Bank Transfer',wallet:'Digital Wallet'};
+export const PAYMENT_LABELS = {cash:'Cash',card:'Debit Card',credit:'Credit Card',upi:'UPI',bank:'Bank Transfer',wallet:'Digital Wallet',bkash:'bKash',nagad:'Nagad',rocket:'Rocket',mobile:'Mobile Payment'};
 
 // ===== HELPERS =====
 export function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
@@ -217,6 +222,10 @@ function guessCategory(desc) {
   if(/rent|house|apartment|flat/.test(d)) return 'rent';
   if(/grocery|supermarket|bigbasket|blinkit|zepto|jiomart/.test(d)) return 'groceries';
   if(/subscription|membership|premium|plan/.test(d)) return 'subscriptions';
+  if(/loan.*repay|repay.*loan|emi|loan.*pay/.test(d)) return 'loan-repayment';
+  if(/debt.*pay|pay.*debt|credit.*card.*pay|pay.*credit/.test(d)) return 'debt-payment';
+  if(/lend|lent|loan.*given|gave.*loan|money.*lent/.test(d)) return 'lending';
+  if(/loan.*received|borrow|taken.*loan|debt.*received/.test(d)) return 'loan-received';
   if(/salary|payroll|wage/.test(d)) return 'salary';
   if(/freelanc|client|project|consulting/.test(d)) return 'freelance';
   if(/invest|dividend|stock|mutual|fund|interest/.test(d)) return 'investment';
@@ -292,7 +301,7 @@ export function validateBusinessTransaction(data) {
   if (!data.date || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) errors.push('Invalid date format');
   if (!data.category) errors.push('Category is required');
   if (!['expense', 'income'].includes(data.type)) errors.push('Invalid transaction type');
-  if (data.payment && !['cash', 'card', 'bank', 'mobile'].includes(data.payment)) errors.push('Invalid payment method');
+  if (data.payment && !['cash', 'card', 'bank', 'mobile', 'bkash', 'nagad', 'rocket', 'credit', 'upi', 'wallet'].includes(data.payment)) errors.push('Invalid payment method');
   if (data.description && data.description.length > MAX_DESC_LENGTH) errors.push(`Description must be ${MAX_DESC_LENGTH} characters or less`);
   if (data.tax != null && (isNaN(data.tax) || data.tax < 0)) errors.push('Tax must be a non-negative number');
   if (data.taxRate != null && (isNaN(data.taxRate) || data.taxRate < 0 || data.taxRate > 100)) errors.push('Tax rate must be between 0 and 100');
@@ -373,7 +382,7 @@ export function sanitizeImportData(data) {
       date: String(t.date).slice(0, 10),
       category: String(t.category || ''),
       description: String(t.description || '').slice(0, 200),
-      payment: ['cash', 'card', 'bank', 'mobile'].includes(t.payment) ? t.payment : 'cash',
+      payment: ['cash', 'card', 'bank', 'mobile', 'bkash', 'nagad', 'rocket', 'credit', 'upi', 'wallet'].includes(t.payment) ? t.payment : 'cash',
       tax: Math.max(0, Number(t.tax) || 0),
       taxRate: Math.max(0, Number(t.taxRate) || 0),
       createdBy: String(t.createdBy || 'owner')

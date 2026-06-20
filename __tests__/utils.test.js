@@ -213,16 +213,16 @@ describe('sanitizeImportData', () => {
 });
 
 describe('constants', () => {
-  it('has 12 expense categories', () => {
-    expect(EXPENSE_CATS).toHaveLength(12);
+  it('has 15 expense categories', () => {
+    expect(EXPENSE_CATS).toHaveLength(15);
   });
-  it('has 6 income categories', () => {
-    expect(INCOME_CATS).toHaveLength(6);
+  it('has 8 income categories', () => {
+    expect(INCOME_CATS).toHaveLength(8);
   });
-  it('has 18 total categories', () => {
-    expect(ALL_CATS).toHaveLength(18);
+  it('has 23 total categories', () => {
+    expect(ALL_CATS).toHaveLength(23);
   });
-  it('has 6 payment methods', () => {
-    expect(Object.keys(PAYMENT_LABELS)).toHaveLength(6);
+  it('has 10 payment methods', () => {
+    expect(Object.keys(PAYMENT_LABELS)).toHaveLength(10);
   });
 });
