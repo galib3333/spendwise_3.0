@@ -8,6 +8,7 @@ import {
 } from './db.js';
 import { toastError } from './toast.js';
 import { isDataEncrypted, encryptForStorage, decryptFromStorage } from './security.js';
+import { ALL_CATS } from './utils.js';
 
 const STORAGE_PREFIX = 'sw_';
 const listeners = new Map();
@@ -107,6 +108,33 @@ export async function initStore() {
     state.bankAccounts = bankAccts || [];
     state.bankTransactions = bankTxns || [];
     state.loans = loansData || [];
+
+    // Migrate old category IDs
+    const validIds = new Set(ALL_CATS.map(c => c.id));
+    let catMigrated = false;
+    for (const t of state.transactions) {
+      if (t.category && !validIds.has(t.category)) {
+        t.category = t.type === 'income' ? 'other-inc' : 'other-exp';
+        catMigrated = true;
+      }
+    }
+    for (const b of state.budgets) {
+      if (b.category && !validIds.has(b.category)) {
+        b.category = 'other-exp';
+        catMigrated = true;
+      }
+    }
+    for (const r of state.recurringList) {
+      if (r.category && !validIds.has(r.category)) {
+        r.category = 'other-exp';
+        catMigrated = true;
+      }
+    }
+    if (catMigrated) {
+      dbPutAll('transactions', state.transactions);
+      dbPutAll('budgets', state.budgets);
+      dbPutAll('recurringList', state.recurringList);
+    }
 
     // Load settings
     const settingsKeys = ['currency', 'theme', 'dateFormat'];

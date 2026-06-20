@@ -27,8 +27,30 @@ export const INCOME_CATS = [
   {id:'other-inc',name:'Other Income',icon:'💎',color:'#9e9e9e'}
 ];
 export const ALL_CATS = [...EXPENSE_CATS, ...INCOME_CATS];
+const CAT_BY_ID = Object.fromEntries(ALL_CATS.map(c => [c.id, c]));
 export const PAYMENT_LABELS = {cash:'Cash',card:'Debit Card',credit:'Credit Card',bkash:'bKash',nagad:'Nagad',rocket:'Rocket',upay:'Upay',upi:'UPI',bank:'Bank Transfer',wallet:'Digital Wallet',mobile:'Mobile Payment'};
 export const BUSINESS_PAYMENT_LABELS = {cash:'Cash',card:'Card',bkash:'bKash',nagad:'Nagad',rocket:'Rocket',upay:'Upay',bank:'Bank Transfer',mobile:'Mobile Payment'};
+
+const LEGACY_CAT_MAP = {
+  'other': 'other-exp',
+  'commute': 'transport',
+  'dining': 'food',
+  'travel': 'transport',
+  'medical': 'health',
+  'clothing': 'shopping',
+  'book': 'education',
+  'house': 'rent',
+  'utility': 'bills',
+  'misc': 'other-exp',
+  'Miscellaneous': 'other-exp',
+  'Other': 'other-exp',
+  'other income': 'other-inc',
+  'Other Income': 'other-inc',
+  'investment income': 'investment',
+  'Investment Income': 'investment',
+  'side income': 'freelance',
+  'Side Income': 'freelance',
+};
 
 // ===== HELPERS =====
 export function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
@@ -115,7 +137,13 @@ export function formatDate(dateStr, format) {
   }
 }
 
-export function getCat(id) { return ALL_CATS.find(c=>c.id===id) || {name:'Unknown',icon:'❓',color:'#9aa0b0'}; }
+export function getCat(id) {
+  if (!id) return { name: 'Unknown', icon: '❓', color: '#9aa0b0' };
+  const cat = CAT_BY_ID[id] || CAT_BY_ID[LEGACY_CAT_MAP[id]];
+  if (cat) return cat;
+  const label = id.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return { name: label, icon: '🏷️', color: '#9aa0b0' };
+}
 
 export function getWeekDates(date) {
   const start = getWeekStart(new Date(date));

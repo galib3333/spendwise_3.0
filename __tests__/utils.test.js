@@ -64,9 +64,19 @@ describe('getCat', () => {
     const cat = getCat('salary');
     expect(cat.name).toBe('Salary');
   });
-  it('returns unknown for missing', () => {
+  it('returns formatted name for unknown category', () => {
     const cat = getCat('nonexistent');
+    expect(cat.name).toBe('Nonexistent');
+    expect(cat.icon).toBe('🏷️');
+  });
+  it('returns unknown for empty/falsy', () => {
+    const cat = getCat('');
     expect(cat.name).toBe('Unknown');
+    expect(cat.icon).toBe('❓');
+  });
+  it('resolves legacy category id', () => {
+    const cat = getCat('other');
+    expect(cat.name).toBe('Other Expense');
   });
 });
 
