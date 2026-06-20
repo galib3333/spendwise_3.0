@@ -9,6 +9,7 @@ import {
 } from './security.js';
 import { escapeHTML } from './sanitize.js';
 import { confirmModal } from './helpers.js';
+import { clearAllData } from './store.js';
 
 const MAX_PIN = 8;
 const MIN_PIN = 4;
@@ -131,7 +132,6 @@ async function handleForgotPin() {
   stopLockTimer();
 
   try {
-    const { clearAllData } = await import('../store.js');
     clearAllData();
   } catch(_e) { /* store may not be loaded yet */ }
 
