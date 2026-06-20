@@ -88,9 +88,21 @@ export function sumByCategory(items) {
   return Object.entries(map).map(([category, amount]) => ({ category, amount })).sort((a, b) => b.amount - a.amount);
 }
 
+export function advanceDate(dateStr, frequency) {
+  const d = parseLocalDate(dateStr);
+  switch (frequency) {
+    case 'weekly': d.setDate(d.getDate() + 7); break;
+    case 'biweekly': d.setDate(d.getDate() + 14); break;
+    case 'monthly': d.setMonth(d.getMonth() + 1); break;
+    case 'quarterly': d.setMonth(d.getMonth() + 3); break;
+    case 'yearly': d.setFullYear(d.getFullYear() + 1); break;
+  }
+  return toDateStr(d);
+}
+
 export function formatDate(dateStr, format) {
   if(!dateStr) return '';
-  const d = new Date(dateStr + 'T00:00:00');
+  const d = parseLocalDate(dateStr);
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
@@ -184,13 +196,8 @@ export function detectBankFormat(headers) {
 
   return {
     mapping,
-    isSplitAmount: hasDebitCredit && !hasAmount,
-    dateFormats: detectDateFormats(lower)
+    isSplitAmount: hasDebitCredit && !hasAmount
   };
-}
-
-function detectDateFormats(headers) {
-  return ['YYYY-MM-DD', 'DD/MM/YYYY', 'DD-MM-YYYY', 'MM/DD/YYYY', 'DD/MM/YY', 'DD.MM.YYYY'];
 }
 
 export function mapCSVRow(row, mapping) {

@@ -4,7 +4,7 @@ import { fmt, getCat, EXPENSE_CATS, validateRecurring, uid, today, parseLocalDat
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastInfo, toastError } from '../toast.js';
 import { openModal, closeModal } from '../modals.js';
-import { renderCatOptions } from '../helpers.js';
+import { renderCatOptions, renderCard, confirmModal } from '../helpers.js';
 
 const FREQ_MULT = { weekly: 4.33, biweekly: 2.16, monthly: 1, quarterly: 0.33, yearly: 0.083 };
 const FREQ_PER_YEAR = { weekly: 52, biweekly: 26, monthly: 12, quarterly: 4, yearly: 1 };
@@ -84,8 +84,8 @@ function saveRecurring() {
   renderRecurring(_recurringContainer);
 }
 
-function deleteRecurringHandler(id) {
-  if(!confirm('Delete this recurring item?')) return;
+async function deleteRecurringHandler(id) {
+  if(!await confirmModal('Delete this recurring item?')) return;
   const removed = deleteRecurring(id);
   if(removed) {
     toastInfo('Recurring deleted', {
@@ -132,9 +132,9 @@ export function renderRecurring(container) {
         </button>
       </div>
       <div class="cards-grid">
-        <div class="card"><div class="card-label">🔄 Active</div><div class="card-value accent">${active.length}</div></div>
-        <div class="card"><div class="card-label">💸 Monthly Cost</div><div class="card-value red">${fmt(monthlyTotal, settings.currency)}</div></div>
-        <div class="card"><div class="card-label">📅 Total Cost</div><div class="card-value yellow">${fmt(yearlyTotal, settings.currency)}</div></div>
+        ${renderCard('🔄 Active', active.length, 'accent')}
+        ${renderCard('💸 Monthly Cost', fmt(monthlyTotal, settings.currency), 'red')}
+        ${renderCard('📅 Total Cost', fmt(yearlyTotal, settings.currency), 'yellow')}
       </div>
       <div class="panel">
         ${recurringList.length ? recurringList.map(r => {

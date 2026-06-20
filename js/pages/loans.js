@@ -1,6 +1,6 @@
 // ===== LOANS PAGE =====
 import { getLoans, addLoan, updateLoan, deleteLoan, getSettings, addTransaction, addRecurring, updateRecurring, deleteRecurring, getRecurringList } from '../store.js';
-import { uid, today, parseLocalDate, toDateStr, fmt } from '../utils.js';
+import { uid, today, parseLocalDate, toDateStr, fmt, advanceDate } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastError } from '../toast.js';
 import { confirmModal, renderCard, ICONS } from '../helpers.js';
@@ -66,18 +66,6 @@ function getFrequencyBadge(frequency) {
   return `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:0.65rem;font-weight:600;background:var(--accent)22;color:var(--accent)">🔁 ${label}</span>`;
 }
 
-function advanceDate(dateStr, frequency) {
-  const d = parseLocalDate(dateStr);
-  switch (frequency) {
-    case 'weekly': d.setDate(d.getDate() + 7); break;
-    case 'biweekly': d.setDate(d.getDate() + 14); break;
-    case 'monthly': d.setMonth(d.getMonth() + 1); break;
-    case 'quarterly': d.setMonth(d.getMonth() + 3); break;
-    case 'yearly': d.setFullYear(d.getFullYear() + 1); break;
-  }
-  return toDateStr(d);
-}
-
 export function renderLoans(container) {
   _container = container;
   const loans = getLoans();
@@ -101,10 +89,10 @@ export function renderLoans(container) {
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px">
-        ${renderCard('Total Lent', fmt(totalLent, currency), 'var(--accent)')}
-        ${renderCard('Received Back', fmt(totalPaid, currency), 'var(--green)')}
-        ${renderCard('Total Borrowed', fmt(totalBorrowed, currency), 'var(--orange)')}
-        ${renderCard('Amount Paid Back', fmt(totalPaidBorrowed, currency), 'var(--purple)')}
+        ${renderCard('Total Lent', fmt(totalLent, currency), 'accent')}
+        ${renderCard('Received Back', fmt(totalPaid, currency), 'green')}
+        ${renderCard('Total Borrowed', fmt(totalBorrowed, currency), 'yellow')}
+        ${renderCard('Amount Paid Back', fmt(totalPaidBorrowed, currency), 'red')}
       </div>
 
       <div class="tabs" style="margin-bottom:16px" id="loanFilterTabs" role="tablist">
@@ -183,19 +171,20 @@ export function renderLoans(container) {
             <label for="loanPaid">Already Paid</label>
             <input type="number" class="input" id="loanPaid" placeholder="0.00" step="0.01" min="0" value="0">
           </div>
-        <div class="form-row">
           <div class="input-group">
             <label for="loanStartDate">Start Date</label>
             <input type="date" class="input" id="loanStartDate" value="${today()}" required>
           </div>
+        </div>
+        <div class="form-row">
           <div class="input-group">
             <label for="loanDueDate">Due Date <span class="text-muted text-sm">(optional)</span></label>
             <input type="date" class="input" id="loanDueDate">
           </div>
-        </div>
-        <div class="input-group">
-          <label for="loanRate">Interest Rate (%) <span class="text-muted text-sm">(optional)</span></label>
-          <input type="number" class="input" id="loanRate" placeholder="0" step="0.1" min="0" max="100">
+          <div class="input-group">
+            <label for="loanRate">Interest Rate (%) <span class="text-muted text-sm">(optional)</span></label>
+            <input type="number" class="input" id="loanRate" placeholder="0" step="0.1" min="0" max="100">
+          </div>
         </div>
         <div class="input-group">
           <label for="loanFrequency">Payment Schedule</label>

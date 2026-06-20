@@ -11,7 +11,7 @@ import { confirmModal } from '../helpers.js';
 import { navigate } from '../router.js';
 import { isGmailConnected, initGmailAuth, requestGmailAccess, disconnectGmail, renderGmailStatus, onConnectionChange } from '../banking/gmail-auth.js';
 import { fetchAndParseEmails, fetchLatestBalance } from '../banking/gmail-fetcher.js';
-import { detectProvider, parseEmailAuto } from '../banking/email-parser.js';
+import { detectProvider, parseEmail } from '../banking/email-parser.js';
 import { formatBalance } from '../banking/balance-tracker.js';
 import '../banking/bkb-adapter.js';
 import '../banking/ebl-adapter.js';
@@ -435,7 +435,7 @@ function bindEvents(container, accounts, settings) {
       return;
     }
 
-    const parsed = parseEmailAuto('', text, '', null);
+    const parsed = parseEmail(detected, '', text, null);
     if (!parsed) {
       resultDiv.innerHTML = `<p class="text-sm" style="color:var(--red)">Failed to parse transaction. Please check the format.</p>`;
       return;

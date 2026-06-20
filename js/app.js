@@ -3,7 +3,7 @@ import { initStore, getSettings, updateSettings, addTransaction, getTransactions
 import { initRouter, navigate, registerPage } from './router.js';
 import { initModals } from './modals.js';
 import { setChartUtils } from './charts.js';
-import { fmt, fmtShort, EXPENSE_CATS, validateTransaction, uid, today, parseLocalDate } from './utils.js';
+import { fmt, fmtShort, EXPENSE_CATS, validateTransaction, uid, today, parseLocalDate, advanceDate } from './utils.js';
 import { applyTheme } from './pages/settings.js';
 import { toastSuccess, toastError, toastWarning } from './toast.js';
 import { initLockScreen, lockApp, resetLockTimer, stopLockTimer } from './lockscreen.js';
@@ -94,15 +94,7 @@ function processRecurring() {
         }
       }
 
-      const d = parseLocalDate(r.nextDate);
-      switch(r.frequency) {
-        case 'weekly': d.setDate(d.getDate() + 7); break;
-        case 'biweekly': d.setDate(d.getDate() + 14); break;
-        case 'monthly': d.setMonth(d.getMonth() + 1); break;
-        case 'quarterly': d.setMonth(d.getMonth() + 3); break;
-        case 'yearly': d.setFullYear(d.getFullYear() + 1); break;
-      }
-      const nextDateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const nextDateStr = advanceDate(r.nextDate, r.frequency);
 
       if(r.endDate && nextDateStr > r.endDate) {
         updateRecurring(r.id, { active: false, nextDate: nextDateStr });
@@ -425,14 +417,6 @@ function syncOrphanedRecurring() {
     if(hasEntry) return;
 
     const freq = t.frequency || 'monthly';
-    const next = parseLocalDate(t.date);
-    switch(freq) {
-      case 'weekly': next.setDate(next.getDate() + 7); break;
-      case 'biweekly': next.setDate(next.getDate() + 14); break;
-      case 'monthly': next.setMonth(next.getMonth() + 1); break;
-      case 'quarterly': next.setMonth(next.getMonth() + 3); break;
-      case 'yearly': next.setFullYear(next.getFullYear() + 1); break;
-    }
     newItems.push({
       id: uid(),
       amount: t.amount,
@@ -440,7 +424,7 @@ function syncOrphanedRecurring() {
       frequency: freq,
       category: t.category,
       startDate: t.date,
-      nextDate: `${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,'0')}-${String(next.getDate()).padStart(2,'0')}`,
+      nextDate: advanceDate(t.date, freq),
       endDate: null,
       active: true
     });

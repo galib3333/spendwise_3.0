@@ -5,6 +5,7 @@ import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastInfo, toastError } from '../toast.js';
 import { openModal, closeModal } from '../modals.js';
 import { drawLineChart } from '../charts.js';
+import { renderCard, confirmModal, bindDataActions } from '../helpers.js';
 
 function openAddGoal() {
   document.getElementById('goalEditId').value = '';
@@ -47,8 +48,8 @@ function saveGoal() {
   renderSavings(_savingsContainer);
 }
 
-function deleteGoalHandler(id) {
-  if(!confirm('Delete this goal?')) return;
+async function deleteGoalHandler(id) {
+  if(!await confirmModal('Delete this goal?')) return;
   const removed = deleteGoal(id);
   if(removed) {
     toastInfo('Goal deleted', {
@@ -68,14 +69,15 @@ function getSavingsTrend() {
   const labels = [];
   const cumulativeData = [];
   let cumulative = 0;
+  const allTxns = getTransactions();
 
   for(let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const ms = getMonthStart(-i);
     const me = getMonthEnd(-i);
 
-    const monthExp = getTransactions().filter(t => t.type === 'expense' && t.date >= ms && t.date <= me).reduce((s, t) => s + t.amount, 0);
-    const monthInc = getTransactions().filter(t => t.type === 'income' && t.date >= ms && t.date <= me).reduce((s, t) => s + t.amount, 0);
+    const monthExp = allTxns.filter(t => t.type === 'expense' && t.date >= ms && t.date <= me).reduce((s, t) => s + t.amount, 0);
+    const monthInc = allTxns.filter(t => t.type === 'income' && t.date >= ms && t.date <= me).reduce((s, t) => s + t.amount, 0);
     cumulative += (monthInc - monthExp);
 
     months.push(cumulative);
@@ -107,8 +109,8 @@ export function renderSavings(container) {
           <div class="card-label">💎 Total Saved</div>
           <div class="card-value">${fmt(totalSaved, settings.currency)}</div>
         </div>
-        <div class="card"><div class="card-label">🎯 Total Target</div><div class="card-value accent">${fmt(totalTarget, settings.currency)}</div></div>
-        <div class="card"><div class="card-label">📊 Overall Progress</div><div class="card-value ${totalTarget ? (totalSaved / totalTarget * 100 >= 100 ? 'green' : 'yellow') : 'accent'}">${totalTarget ? (totalSaved / totalTarget * 100).toFixed(1) : 0}%</div></div>
+        ${renderCard('🎯 Total Target', fmt(totalTarget, settings.currency), 'accent')}
+        ${renderCard('📊 Overall Progress', totalTarget ? (totalSaved / totalTarget * 100).toFixed(1) + '%' : '0%', totalTarget ? (totalSaved / totalTarget * 100 >= 100 ? 'green' : 'yellow') : 'accent')}
       </div>
       <div class="panel mb-20">
         <div class="panel-header"><h3>Savings Trend</h3><span class="text-sm text-muted">Last 6 months</span></div>
@@ -170,12 +172,9 @@ export function renderSavings(container) {
   document.getElementById('addGoalBtn')?.addEventListener('click', openAddGoal);
   bindGoalSaveBtnOnce();
 
-  container.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      if(btn.dataset.action === 'edit') openEditGoal(btn.dataset.id);
-      else if(btn.dataset.action === 'delete') deleteGoalHandler(btn.dataset.id);
-    });
+  bindDataActions(container, {
+    edit: (id) => openEditGoal(id),
+    delete: (id) => deleteGoalHandler(id)
   });
 
   setTimeout(() => {

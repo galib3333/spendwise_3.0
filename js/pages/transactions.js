@@ -4,7 +4,7 @@ import { today, fmt, formatDate, getCat, ALL_CATS, EXPENSE_CATS, INCOME_CATS, PA
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastInfo, toastError } from '../toast.js';
 import { openModal, closeModal } from '../modals.js';
-import { renderCatOptions } from '../helpers.js';
+import { renderCatOptions, confirmModal } from '../helpers.js';
 
 let currentFilter = { search: '', type: 'all', category: 'all', payment: 'all', dateFrom: '', dateTo: '', sort: 'date-desc' };
 let currentPage = 1;
@@ -231,8 +231,8 @@ function saveTransaction() {
   renderTable();
 }
 
-function deleteTransactionHandler(id) {
-  if(!confirm('Delete this transaction?')) return;
+async function deleteTransactionHandler(id) {
+  if(!await confirmModal('Delete this transaction?')) return;
   const removed = deleteTransaction(id);
   if(removed) {
     toastInfo('Transaction deleted', {

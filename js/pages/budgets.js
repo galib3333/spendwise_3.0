@@ -4,7 +4,7 @@ import { fmt, getCat, EXPENSE_CATS, validateBudget, uid, getMonthStart, getMonth
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastInfo, toastError } from '../toast.js';
 import { openModal, closeModal } from '../modals.js';
-import { renderCatOptions } from '../helpers.js';
+import { renderCatOptions, renderCard, confirmModal, bindDataActions } from '../helpers.js';
 
 function getMonthExpenses() {
   const monthStart = getMonthStart();
@@ -52,8 +52,8 @@ function saveBudget() {
   renderBudgets(_budgetContainer);
 }
 
-function deleteBudgetHandler(id) {
-  if(!confirm('Delete this budget?')) return;
+async function deleteBudgetHandler(id) {
+  if(!await confirmModal('Delete this budget?')) return;
   const removed = deleteBudget(id);
   if(removed) {
     toastInfo('Budget deleted', {
@@ -88,9 +88,9 @@ export function renderBudgets(container) {
         </button>
       </div>
       <div class="cards-grid">
-        <div class="card"><div class="card-label">💰 Total Budget</div><div class="card-value accent">${fmt(totalBudget, settings.currency)}</div></div>
-        <div class="card"><div class="card-label">💸 Total Spent</div><div class="card-value red">${fmt(totalSpent, settings.currency)}</div></div>
-        <div class="card"><div class="card-label">📊 Remaining</div><div class="card-value ${totalBudget - totalSpent >= 0 ? 'green' : 'red'}">${fmt(totalBudget - totalSpent, settings.currency)}</div></div>
+        ${renderCard('💰 Total Budget', fmt(totalBudget, settings.currency), 'accent')}
+        ${renderCard('💸 Total Spent', fmt(totalSpent, settings.currency), 'red')}
+        ${renderCard('📊 Remaining', fmt(totalBudget - totalSpent, settings.currency), totalBudget - totalSpent >= 0 ? 'green' : 'red')}
       </div>
       <div class="panel" id="budgetsList">
         ${budgets.length ? budgets.map(b => {
@@ -125,12 +125,9 @@ export function renderBudgets(container) {
   document.getElementById('addBudgetBtn')?.addEventListener('click', openAddBudget);
   bindBudgetSaveBtnOnce();
 
-  container.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      if(btn.dataset.action === 'edit') openEditBudget(btn.dataset.id);
-      else if(btn.dataset.action === 'delete') deleteBudgetHandler(btn.dataset.id);
-    });
+  bindDataActions(container, {
+    edit: (id) => openEditBudget(id),
+    delete: (id) => deleteBudgetHandler(id)
   });
 }
 
