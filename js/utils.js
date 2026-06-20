@@ -27,13 +27,66 @@ export const INCOME_CATS = [
   {id:'other-inc',name:'Other Income',icon:'💎',color:'#9e9e9e'}
 ];
 export const ALL_CATS = [...EXPENSE_CATS, ...INCOME_CATS];
-export const PAYMENT_LABELS = {cash:'Cash',card:'Debit Card',credit:'Credit Card',upi:'UPI',bank:'Bank Transfer',wallet:'Digital Wallet',bkash:'bKash',nagad:'Nagad',rocket:'Rocket',mobile:'Mobile Payment'};
+export const PAYMENT_LABELS = {cash:'Cash',card:'Debit Card',credit:'Credit Card',bkash:'bKash',nagad:'Nagad',rocket:'Rocket',upay:'Upay',upi:'UPI',bank:'Bank Transfer',wallet:'Digital Wallet',mobile:'Mobile Payment'};
+export const BUSINESS_PAYMENT_LABELS = {cash:'Cash',card:'Card',bkash:'bKash',nagad:'Nagad',rocket:'Rocket',upay:'Upay',bank:'Bank Transfer',mobile:'Mobile Payment'};
 
 // ===== HELPERS =====
 export function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 export function fmt(n, currency) { return currency + Number(n||0).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 export function fmtShort(n, currency) { return currency + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:0}); }
-export function today() { return new Date().toISOString().slice(0,10); }
+export function fmtCompact(n, currency) {
+  if (n >= 100000) return currency + (n / 100000).toFixed(1) + 'L';
+  if (n >= 1000) return currency + (n / 1000).toFixed(1) + 'K';
+  return currency + n.toFixed(0);
+}
+export function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// ===== DATE HELPERS =====
+export function parseLocalDate(dateStr) {
+  if (!dateStr) return new Date();
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+export function toDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+export function getWeekStart(d) { const dt = new Date(d); const day = dt.getDay(); dt.setDate(dt.getDate() - day); return dt; }
+export function addDays(dateStr, days) {
+  const d = parseLocalDate(dateStr);
+  d.setDate(d.getDate() + days);
+  return toDateStr(d);
+}
+export function addMonths(dateStr, months) {
+  const d = parseLocalDate(dateStr);
+  d.setMonth(d.getMonth() + months);
+  return toDateStr(d);
+}
+export function getMonthStart(offset = 0) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + offset);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+export function getMonthEnd(offset = 0) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + offset + 1, 0);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// ===== SHARED QUERY HELPERS =====
+export function getExpenses(transactions, start, end) {
+  return transactions.filter(t => t.type === 'expense' && t.date >= start && t.date <= end);
+}
+export function getIncome(transactions, start, end) {
+  return transactions.filter(t => t.type === 'income' && t.date >= start && t.date <= end);
+}
+export function sumByCategory(items) {
+  const map = {};
+  items.forEach(t => { map[t.category] = (map[t.category] || 0) + t.amount; });
+  return Object.entries(map).map(([category, amount]) => ({ category, amount })).sort((a, b) => b.amount - a.amount);
+}
 
 export function formatDate(dateStr, format) {
   if(!dateStr) return '';
@@ -50,19 +103,18 @@ export function formatDate(dateStr, format) {
   }
 }
 
-function getWeekStart(d) { const dt=new Date(d); const day=dt.getDay(); dt.setDate(dt.getDate()-day); return dt; }
 export function getCat(id) { return ALL_CATS.find(c=>c.id===id) || {name:'Unknown',icon:'❓',color:'#9aa0b0'}; }
 
 export function getWeekDates(date) {
   const start = getWeekStart(new Date(date));
   const dates = [];
-  for(let i=0;i<7;i++) { const d=new Date(start); d.setDate(d.getDate()+i); dates.push(d.toISOString().slice(0,10)); }
+  for(let i=0;i<7;i++) { const d=new Date(start); d.setDate(d.getDate()+i); dates.push(toDateStr(d)); }
   return dates;
 }
 
 // ===== CSV ESCAPING =====
 export function escapeCSV(val) {
-  const s = String(val == null ? '' : val);
+  const s = String(val === null || val === undefined ? '' : val);
   if(s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
     return '"' + s.replace(/"/g, '""') + '"';
   }
@@ -102,15 +154,6 @@ export function parseCSVSimple(text) {
 }
 
 // Bank statement format detection
-const BANK_PATTERNS = [
-  { name: 'Generic (Date, Description, Amount)', date: 0, desc: 1, amount: 2, type: null },
-  { name: 'Generic (Date, Description, Debit, Credit)', date: 0, desc: 1, debit: 2, credit: 3, type: 'split' },
-  { name: 'HDFC Bank', date: 0, desc: 2, amount: 3, type: null, dateFormats: ['DD/MM/YYYY', 'DD-MM-YYYY'] },
-  { name: 'SBI Bank', date: 0, desc: 3, amount: 5, type: 'split', debit: 4, credit: 5, dateFormats: ['DD/MM/YYYY'] },
-  { name: 'ICICI Bank', date: 0, desc: 2, amount: 4, type: null, dateFormats: ['DD/MM/YY'] },
-  { name: 'Axis Bank', date: 0, desc: 2, debit: 3, credit: 4, type: 'split', dateFormats: ['DD-MM-YYYY'] },
-];
-
 const HEADER_KEYWORDS = {
   date: ['date', 'txn date', 'transaction date', 'posted date', 'value date', 'trans date'],
   description: ['description', 'narration', 'particulars', 'details', 'memo', 'payee', 'merchant', 'transaction'],
@@ -275,7 +318,7 @@ export function validateGoal(data) {
   if(data.name && data.name.length > 100) errors.push('Goal name must be 100 characters or less');
   if(!data.target || isNaN(data.target) || data.target <= 0) errors.push('Target amount must be a positive number');
   if(data.target > MAX_AMOUNT) errors.push('Target amount exceeds maximum allowed');
-  if(data.current != null && (isNaN(data.current) || data.current < 0)) errors.push('Current amount cannot be negative');
+  if(data.current !== null && data.current !== undefined && (isNaN(data.current) || data.current < 0)) errors.push('Current amount cannot be negative');
   return errors;
 }
 
@@ -301,10 +344,10 @@ export function validateBusinessTransaction(data) {
   if (!data.date || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) errors.push('Invalid date format');
   if (!data.category) errors.push('Category is required');
   if (!['expense', 'income'].includes(data.type)) errors.push('Invalid transaction type');
-  if (data.payment && !['cash', 'card', 'bank', 'mobile', 'bkash', 'nagad', 'rocket', 'credit', 'upi', 'wallet'].includes(data.payment)) errors.push('Invalid payment method');
+  if (data.payment && !['cash', 'card', 'bank', 'mobile', 'bkash', 'nagad', 'rocket', 'upay', 'credit', 'upi', 'wallet'].includes(data.payment)) errors.push('Invalid payment method');
   if (data.description && data.description.length > MAX_DESC_LENGTH) errors.push(`Description must be ${MAX_DESC_LENGTH} characters or less`);
-  if (data.tax != null && (isNaN(data.tax) || data.tax < 0)) errors.push('Tax must be a non-negative number');
-  if (data.taxRate != null && (isNaN(data.taxRate) || data.taxRate < 0 || data.taxRate > 100)) errors.push('Tax rate must be between 0 and 100');
+  if (data.tax !== null && data.tax !== undefined && (isNaN(data.tax) || data.tax < 0)) errors.push('Tax must be a non-negative number');
+  if (data.taxRate !== null && data.taxRate !== undefined && (isNaN(data.taxRate) || data.taxRate < 0 || data.taxRate > 100)) errors.push('Tax rate must be between 0 and 100');
   return errors;
 }
 
@@ -313,7 +356,7 @@ export function validateBusinessCategory(data) {
   if (!data.name || !data.name.trim()) errors.push('Category name is required');
   if (data.name && data.name.length > 50) errors.push('Category name must be 50 characters or less');
   if (!['expense', 'income'].includes(data.type)) errors.push('Invalid category type');
-  if (data.taxRate == null || isNaN(data.taxRate) || data.taxRate < 0 || data.taxRate > 100) errors.push('Tax rate must be between 0 and 100');
+  if (data.taxRate === null || data.taxRate === undefined || isNaN(data.taxRate) || data.taxRate < 0 || data.taxRate > 100) errors.push('Tax rate must be between 0 and 100');
   return errors;
 }
 
@@ -382,7 +425,7 @@ export function sanitizeImportData(data) {
       date: String(t.date).slice(0, 10),
       category: String(t.category || ''),
       description: String(t.description || '').slice(0, 200),
-      payment: ['cash', 'card', 'bank', 'mobile', 'bkash', 'nagad', 'rocket', 'credit', 'upi', 'wallet'].includes(t.payment) ? t.payment : 'cash',
+      payment: ['cash', 'card', 'bank', 'mobile', 'bkash', 'nagad', 'rocket', 'upay', 'credit', 'upi', 'wallet'].includes(t.payment) ? t.payment : 'cash',
       tax: Math.max(0, Number(t.tax) || 0),
       taxRate: Math.max(0, Number(t.taxRate) || 0),
       createdBy: String(t.createdBy || 'owner')

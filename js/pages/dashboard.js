@@ -1,32 +1,20 @@
 // ===== DASHBOARD PAGE =====
-import { getTransactions, getBudgets, getSavingsGoals, getRecurringList, getSettings } from '../store.js';
-import { today, fmt, getCat } from '../utils.js';
+import { getTransactions, getBudgets, getSavingsGoals, getRecurringList, getSettings, getLoans } from '../store.js';
+import { fmt, today, getCat, getExpenses as _getExpenses, getIncome as _getIncome, sumByCategory as _sumByCategory, getMonthStart, getMonthEnd } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { drawPieChart, drawBarChart, drawHealthRing } from '../charts.js';
 
-function getExpenses(start, end) {
-  return getTransactions().filter(t => t.type === 'expense' && t.date >= start && t.date <= end);
-}
-
-function getIncome(start, end) {
-  return getTransactions().filter(t => t.type === 'income' && t.date >= start && t.date <= end);
-}
-
-function sumByCategory(items) {
-  const map = {};
-  items.forEach(t => { map[t.category] = (map[t.category] || 0) + t.amount; });
-  return Object.entries(map).map(([cat, val]) => ({ category: cat, amount: val })).sort((a, b) => b.amount - a.amount);
-}
+function getExpenses(start, end) { return _getExpenses(getTransactions(), start, end); }
+function getIncome(start, end) { return _getIncome(getTransactions(), start, end); }
+function sumByCategory(items) { return _sumByCategory(items); }
 
 let dashMonthOffset = 0;
 
 function calcHealthScore(monthStart, monthEnd) {
-  const now = new Date();
   const thisMonthExp = getExpenses(monthStart, monthEnd);
 
-  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1 + dashMonthOffset, 1);
-  const lmStart = lastMonth.toISOString().slice(0, 7) + '-01';
-  const lmEnd = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const lmStart = getMonthStart(-1 + dashMonthOffset);
+  const lmEnd = getMonthEnd(-1 + dashMonthOffset);
   const lastMonthExp = getExpenses(lmStart, lmEnd);
 
   const thisMonthInc = getIncome(monthStart, monthEnd);
@@ -112,8 +100,9 @@ function calcHealthScoreRaw(monthStart, monthEnd, offset) {
   const now = new Date();
   const thisMonthExp = getExpenses(monthStart, monthEnd);
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1 + offset, 1);
-  const lmStart = lastMonth.toISOString().slice(0, 7) + '-01';
-  const lmEnd = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const lmStart = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth()+1).padStart(2,'0')}-01`;
+  const lmEndD = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0);
+  const lmEnd = `${lmEndD.getFullYear()}-${String(lmEndD.getMonth()+1).padStart(2,'0')}-${String(lmEndD.getDate()).padStart(2,'0')}`;
   const lastMonthExp = getExpenses(lmStart, lmEnd);
   const thisMonthInc = getIncome(monthStart, monthEnd);
   const totalExp = thisMonthExp.reduce((s, x) => s + x.amount, 0);
@@ -148,8 +137,8 @@ function calcHealthScoreRaw(monthStart, monthEnd, offset) {
 function getInsights(monthStart, monthEnd) {
   const now = new Date();
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1 + dashMonthOffset, 1);
-  const lmStart = lastMonth.toISOString().slice(0, 7) + '-01';
-  const lmEnd = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const lmStart = getMonthStart(-1 + dashMonthOffset);
+  const lmEnd = getMonthEnd(-1 + dashMonthOffset);
 
   const thisMonthExp = getExpenses(monthStart, monthEnd);
   const lastMonthExp = getExpenses(lmStart, lmEnd);
@@ -224,7 +213,9 @@ function getPrompts(monthStart, monthEnd) {
 
   const recurringList = getRecurringList();
   const upcomingRecurring = recurringList.filter(r => r.active && r.nextDate <= t);
-  const futureRecurring = recurringList.filter(r => r.active && r.nextDate > t && r.nextDate <= new Date(now.getTime() + 7 * 86400000).toISOString().slice(0, 10));
+  const futureDate = new Date(now.getTime() + 7 * 86400000);
+  const futureDateStr = `${futureDate.getFullYear()}-${String(futureDate.getMonth()+1).padStart(2,'0')}-${String(futureDate.getDate()).padStart(2,'0')}`;
+  const futureRecurring = recurringList.filter(r => r.active && r.nextDate > t && r.nextDate <= futureDateStr);
 
   if(upcomingRecurring.length > 0) {
     const total = upcomingRecurring.reduce((s, r) => s + r.amount, 0);
@@ -263,6 +254,20 @@ function getPrompts(monthStart, monthEnd) {
     prompts.push({ icon: '💸', bg: 'var(--accent)', title: 'No Activity', text: `No expenses logged this month yet — ${daysInMonth - dayOfMonth} days left` });
   }
 
+  const loans = getLoans();
+  loans.forEach(l => {
+    if (l.status === 'settled') return;
+    const remaining = l.amount - l.paid;
+    const pct = l.amount > 0 ? (l.paid / l.amount) * 100 : 0;
+    const dueDate = l.dueDate ? new Date(l.dueDate) : null;
+    const nowMs = Date.now();
+    if (dueDate && dueDate.getTime() < nowMs) {
+      prompts.push({ icon: '⚠️', bg: 'var(--red)', title: 'Loan Overdue', text: `${l.person} — ${fmt(remaining, settings.currency)} still owed (was due ${l.dueDate})` });
+    } else if (pct >= 80 && pct < 100) {
+      prompts.push({ icon: '✅', bg: 'var(--green)', title: 'Loan Almost Paid', text: `${l.person} — ${Math.round(pct)}% cleared, ${fmt(remaining, settings.currency)} left` });
+    }
+  });
+
   return prompts;
 }
 
@@ -288,8 +293,8 @@ export function renderDashboard(container) {
   const settings = getSettings();
   const now = new Date();
   const displayDate = new Date(now.getFullYear(), now.getMonth() + dashMonthOffset, 1);
-  const monthStart = displayDate.toISOString().slice(0, 7) + '-01';
-  const monthEnd = new Date(displayDate.getFullYear(), displayDate.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const monthStart = getMonthStart(dashMonthOffset);
+  const monthEnd = getMonthEnd(dashMonthOffset);
   const isCurrentMonth = dashMonthOffset === 0;
   const monthName = displayDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
@@ -446,6 +451,59 @@ export function renderDashboard(container) {
         </div>
       ` : ''}
 
+      ${(() => {
+        const loans = getLoans();
+        const activeLoans = loans.filter(l => l.status !== 'settled');
+        if (!activeLoans.length) return '';
+        const lentOut = activeLoans.filter(l => l.type === 'lent');
+        const borrowed = activeLoans.filter(l => l.type === 'borrowed');
+        const totalLentRemaining = lentOut.reduce((s, l) => s + (l.amount - l.paid), 0);
+        const totalBorrowedRemaining = borrowed.reduce((s, l) => s + (l.amount - l.paid), 0);
+        return `
+          <div class="panel mb-20">
+            <div class="panel-header">
+              <h3>Loans & Debts</h3>
+              <a href="#" class="text-sm text-muted" onclick="event.preventDefault();document.querySelector('[data-page=loans]')?.click()" style="text-decoration:underline;cursor:pointer">View All →</a>
+            </div>
+            <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+              ${lentOut.length ? `<span class="badge" style="color:var(--accent);border-color:var(--accent)">📤 Lent: ${fmt(totalLentRemaining, settings.currency)} owed to you (${lentOut.length})</span>` : ''}
+              ${borrowed.length ? `<span class="badge" style="color:var(--purple);border-color:var(--purple)">📥 Borrowed: ${fmt(totalBorrowedRemaining, settings.currency)} you owe (${borrowed.length})</span>` : ''}
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr));gap:10px">
+              ${activeLoans.slice(0, 5).map(l => {
+                const remaining = l.amount - l.paid;
+                const pct = l.amount > 0 ? Math.min(100, (l.paid / l.amount) * 100) : 0;
+                const isOverdue = l.dueDate && new Date(l.dueDate).getTime() < Date.now();
+                const statusColor = isOverdue ? 'var(--red)' : l.type === 'lent' ? 'var(--accent)' : 'var(--purple)';
+                const icon = l.type === 'lent' ? '📤' : '📥';
+                const daysLeft = l.dueDate ? Math.ceil((new Date(l.dueDate) - new Date()) / 86400000) : null;
+                return `
+                  <div style="padding:10px;background:var(--bg3);border-left:3px solid ${statusColor}">
+                    <div class="flex gap-8" style="align-items:center;margin-bottom:4px">
+                      <span>${icon}</span>
+                      <span class="text-sm" style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(l.person)}</span>
+                      ${isOverdue ? `<span style="color:var(--red);font-size:0.65rem;font-weight:600">OVERDUE</span>` : ''}
+                    </div>
+                    <div class="flex flex-between text-sm" style="margin-bottom:4px">
+                      <span style="color:var(--text3)">${fmt(remaining, settings.currency)} left</span>
+                      <span style="font-weight:600;color:${statusColor}">${Math.round(pct)}%</span>
+                    </div>
+                    <div class="progress-bar" style="height:3px;margin-bottom:4px">
+                      <div class="progress-fill" style="width:${pct}%;background:${statusColor}"></div>
+                    </div>
+                    <div class="text-sm text-muted" style="display:flex;justify-content:space-between">
+                      <span>${fmt(l.amount, settings.currency)} total</span>
+                      ${daysLeft !== null ? `<span style="color:${isOverdue ? 'var(--red)' : daysLeft < 7 ? 'var(--yellow)' : 'var(--text3)'}">${isOverdue ? Math.abs(daysLeft) + 'd overdue' : daysLeft + 'd left'}</span>` : ''}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+            ${activeLoans.length > 5 ? `<div class="text-sm text-muted" style="text-align:center;margin-top:8px">+${activeLoans.length - 5} more</div>` : ''}
+          </div>
+        `;
+      })()}
+
       <div class="grid-3">
         <div class="panel">
           <div class="panel-header">
@@ -457,15 +515,15 @@ export function renderDashboard(container) {
               <canvas id="dashPie" aria-label="Spending breakdown pie chart"></canvas>
             </div>
             <div style="flex:1;min-width:200px">
-              ${catData.length ? catData.map(c => `
+              ${catData.length ? catData.map(c => { const cat = getCat(c.category); return `
                 <div class="flex flex-center flex-between mb-8">
                   <div class="flex flex-center gap-8">
-                    <div style="width:10px;height:10px;border-radius:50%;background:${getCat(c.category).color}" aria-hidden="true"></div>
-                    <span class="text-sm">${getCat(c.category).icon} ${escapeHTML(getCat(c.category).name)}</span>
+                    <div style="width:10px;height:10px;border-radius:50%;background:${cat.color}" aria-hidden="true"></div>
+                    <span class="text-sm">${cat.icon} ${escapeHTML(cat.name)}</span>
                   </div>
                   <span class="text-sm" style="font-weight:600">${fmt(c.amount, settings.currency)}</span>
                 </div>
-              `).join('') : '<p class="text-muted text-sm">No expenses this month</p>'}
+              `; }).join('') : '<p class="text-muted text-sm">No expenses this month</p>'}
             </div>
           </div>
         </div>
@@ -490,8 +548,8 @@ export function renderDashboard(container) {
     const labels = [];
     for(let i = 5; i >= 0; i--) {
       const d = new Date(displayDate.getFullYear(), displayDate.getMonth() - i, 1);
-      const ms = d.toISOString().slice(0, 7) + '-01';
-      const me = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+      const ms = getMonthStart(-i);
+      const me = getMonthEnd(-i);
       last6.push(getExpenses(ms, me).reduce((s, x) => s + x.amount, 0));
       labels.push(d.toLocaleDateString('en-US', { month: 'short' }));
     }

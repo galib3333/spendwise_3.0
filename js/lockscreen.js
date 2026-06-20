@@ -6,6 +6,7 @@ import {
   startLockTimer, stopLockTimer, resetLockTimer, getLockTimeout, setLockTimeout,
   getPrivacyPolicy
 } from './security.js';
+import { escapeHTML } from './sanitize.js';
 
 const MAX_PIN = 8;
 const MIN_PIN = 4;
@@ -247,58 +248,59 @@ async function handlePinComplete() {
   if (_processing) return;
   _processing = true;
 
-  if (_step === 'setup') {
-    _setupPin = _pin;
-    _pin = '';
-    _step = 'confirm';
-    _processing = false;
-    renderConfirmScreen();
-    return;
-  }
+  try {
+    if (_step === 'setup') {
+      _setupPin = _pin;
+      _pin = '';
+      _step = 'confirm';
+      _processing = false;
+      renderConfirmScreen();
+      return;
+    }
 
-  if (_step === 'confirm') {
-    if (_pin === _setupPin) {
-      const ok = await setupPIN(_pin);
+    if (_step === 'confirm') {
+      if (_pin === _setupPin) {
+        const ok = await setupPIN(_pin);
+        if (ok) {
+          finish(true);
+          return;
+        }
+        _processing = false;
+        showError('Failed to set PIN');
+        return;
+      }
+      showError('PINs do not match');
+      _pin = '';
+      _processing = false;
+      setTimeout(() => {
+        _step = 'setup';
+        renderSetupScreen();
+      }, 800);
+      return;
+    }
+
+    if (_step === 'enter') {
+      if (isLockedOut()) {
+        const sec = Math.ceil(getRemainingLockoutMs() / 1000);
+        showError(`Too many attempts. Wait ${sec}s`);
+        _pin = '';
+        _processing = false;
+        updateDots();
+        return;
+      }
+      const ok = await verifyPIN(_pin);
       if (ok) {
         finish(true);
         return;
       }
-      _processing = false;
-      showError('Failed to set PIN');
-      return;
-    }
-    showError('PINs do not match');
-    _pin = '';
-    _processing = false;
-    setTimeout(() => {
-      _step = 'setup';
-      renderSetupScreen();
-    }, 800);
-    return;
-  }
-
-  if (_step === 'enter') {
-    if (isLockedOut()) {
-      const sec = Math.ceil(getRemainingLockoutMs() / 1000);
-      showError(`Too many attempts. Wait ${sec}s`);
+      showError('Incorrect PIN');
       _pin = '';
       _processing = false;
       updateDots();
       return;
     }
-    const ok = await verifyPIN(_pin);
-    if (ok) {
-      finish(true);
-      return;
-    }
-    showError('Incorrect PIN');
-    _pin = '';
-    _processing = false;
-    updateDots();
-    return;
-  }
 
-  if (_step === 'change') {
+    if (_step === 'change') {
     const ok = await verifyPIN(_pin);
     if (ok) {
       _pin = '';
@@ -313,6 +315,11 @@ async function handlePinComplete() {
     updateDots();
     return;
   }
+  } catch (e) {
+    console.error('PIN handling error:', e);
+    showError('Something went wrong. Please try again.');
+    _pin = '';
+  }
 
   _processing = false;
 }
@@ -325,7 +332,7 @@ function showPrivacyModal() {
   overlay.className = 'modal-overlay show';
   overlay.innerHTML = `<div class="modal" style="max-width:600px;max-height:80vh;overflow-y:auto">
     <h3>Privacy Policy</h3>
-    <div style="color:var(--text2);font-size:0.8rem;line-height:1.6;white-space:pre-wrap">${policy}</div>
+    <div style="color:var(--text2);font-size:0.8rem;line-height:1.6;white-space:pre-wrap">${escapeHTML(policy)}</div>
     <div class="modal-actions">
       <button type="button" class="btn btn-primary" id="privacyCloseBtn">Close</button>
     </div>

@@ -1,6 +1,6 @@
 // ===== EXPORT PAGE =====
 import { getTransactions, getBudgets, getSavingsGoals, getRecurringList, addBulkTransactions, replaceAllData, getBusinessProfile, getBusinessTransactions, getBusinessCategories, getSettings } from '../store.js';
-import { today, fmt, getCat, escapeCSV, parseCSVSimple, detectBankFormat, mapCSVRow, sanitizeImportData, uid } from '../utils.js';
+import { today, fmt, getCat, escapeCSV, parseCSVSimple, detectBankFormat, mapCSVRow, sanitizeImportData, uid, getMonthStart, getMonthEnd } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastError } from '../toast.js';
 import { encryptData, decryptData, hasPIN, verifyPIN } from '../security.js';
@@ -87,6 +87,12 @@ function promptPassword({ title, message, hint, confirm, confirmLabel, onValidat
   });
 }
 
+let _exportContainer = null;
+
+function renderExportPage() {
+  renderExport(_exportContainer);
+}
+
 // ===== EXPORT FUNCTIONS =====
 function exportTransactionsCSV() {
   const header = 'Date,Type,Category,Amount,Payment,Description,Tags,Recurring\n';
@@ -99,9 +105,8 @@ function exportTransactionsCSV() {
 
 function exportBudgetsCSV() {
   const header = 'Category,Monthly Limit,Spent This Month\n';
-  const now = new Date();
-  const ms = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
-  const me = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const ms = getMonthStart();
+  const me = getMonthEnd();
   const txns = getTransactions();
 
   const rows = getBudgets().map(b => {
@@ -149,8 +154,8 @@ function exportJSON() {
 function exportMonthlyReport() {
   const settings = getSettings();
   const now = new Date();
-  const ms = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
-  const me = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const ms = getMonthStart();
+  const me = getMonthEnd();
   const txns = getTransactions();
   const exp = txns.filter(t => t.type === 'expense' && t.date >= ms && t.date <= me);
   const inc = txns.filter(t => t.type === 'income' && t.date >= ms && t.date <= me);
@@ -164,7 +169,7 @@ function exportMonthlyReport() {
   csv += `Total Expenses,${total.toFixed(2)}\n`;
   csv += `Total Income,${inc.reduce((s, t) => s + t.amount, 0).toFixed(2)}\n\n`;
   csv += 'Category,Amount,Percentage\n';
-  catData.forEach(c => { csv += `"${getCat(c.category).name}",${c.amount.toFixed(2)},${(c.amount / total * 100).toFixed(1)}%\n`; });
+  catData.forEach(c => { csv += `"${getCat(c.category).name}",${c.amount.toFixed(2)},${total > 0 ? (c.amount / total * 100).toFixed(1) : '0.0'}%\n`; });
   csv += '\nTransactions\nDate,Type,Category,Amount,Description\n';
   exp.concat(inc).sort((a, b) => a.date.localeCompare(b.date)).forEach(t => {
     csv += `${t.date},${t.type},"${getCat(t.category).name}",${t.amount},"${escapeCSV(t.description || '')}"\n`;
@@ -276,8 +281,8 @@ async function importEncrypted() {
         if(!clean) { toastError('Invalid data in backup'); window.__resumeAutoLock?.(); return; }
         replaceAllData(clean);
         toastSuccess('Encrypted backup imported!');
-        renderExport(document.getElementById('mainContent'));
-      } catch(err) {
+        renderExportPage();
+      } catch(_e) {
         toastError('Invalid file format');
       }
       window.__resumeAutoLock?.();
@@ -305,8 +310,8 @@ function importJSON() {
         if(!data) { toastError('Invalid file format'); return; }
         replaceAllData(data);
         toastSuccess('Data imported successfully!');
-        renderExport(document.getElementById('mainContent'));
-      } catch(err) { toastError('Invalid file format'); }
+        renderExportPage();
+      } catch(_e) { toastError('Invalid file format'); }
       window.__resumeAutoLock?.();
     };
     reader.readAsText(file);
@@ -434,7 +439,7 @@ function renderColumnMapping() {
     addBulkTransactions(mapped);
     toastSuccess(`Imported ${mapped.length} transactions`);
     overlay.classList.remove('show');
-    renderExport(document.getElementById('mainContent'));
+    renderExportPage();
   });
 
   updatePreview();
@@ -472,6 +477,7 @@ function updatePreview() {
 
 // ===== RENDER PAGE =====
 export function renderExport(container) {
+  _exportContainer = container;
   const transactions = getTransactions();
   const budgets = getBudgets();
   const savingsGoals = getSavingsGoals();

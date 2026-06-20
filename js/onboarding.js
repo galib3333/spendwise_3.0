@@ -45,6 +45,9 @@ export function showOnboarding() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show';
   overlay.style.zIndex = '9999';
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) finish();
+  });
   renderStep();
   document.body.appendChild(overlay);
 
@@ -87,10 +90,6 @@ export function showOnboarding() {
         currentStep--;
         renderStep();
       }
-    });
-
-    overlay.addEventListener('click', e => {
-      if (e.target === overlay) finish();
     });
   }
 

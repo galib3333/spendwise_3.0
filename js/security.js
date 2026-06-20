@@ -1,10 +1,17 @@
 // ===== SECURITY MODULE =====
 // Web Crypto API encryption + PIN hashing + biometric support
 
+import { today } from './utils.js';
+
 const SALT_KEY = 'sw_salt';
 const HASH_KEY = 'sw_pin_hash';
 const LOCK_KEY = 'sw_lock';
 const ATTEMPTS_KEY = 'sw_lock_attempts';
+const LOCK_TIMEOUT_KEY = 'sw_lock_timeout';
+const SALT_BYTES = 16;
+const IV_BYTES = 12;
+const PBKDF2_ITERATIONS = 100000;
+const AES_KEY_LENGTH = 256;
 
 // ===== PIN MANAGEMENT =====
 export function hasPIN() {
@@ -12,7 +19,7 @@ export function hasPIN() {
 }
 
 function generateSalt() {
-  const arr = new Uint8Array(16);
+  const arr = new Uint8Array(SALT_BYTES);
   crypto.getRandomValues(arr);
   return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
 }
@@ -113,9 +120,9 @@ async function deriveKey(password, salt) {
     'raw', encoder.encode(password), 'PBKDF2', false, ['deriveKey']
   );
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt: encoder.encode(salt), iterations: 100000, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: encoder.encode(salt), iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
     keyMaterial,
-    { name: 'AES-GCM', length: 256 },
+    { name: 'AES-GCM', length: AES_KEY_LENGTH },
     false,
     ['encrypt', 'decrypt']
   );
@@ -123,7 +130,7 @@ async function deriveKey(password, salt) {
 
 export async function encryptData(data, password) {
   const salt = generateSalt();
-  const iv = new Uint8Array(12);
+  const iv = new Uint8Array(IV_BYTES);
   crypto.getRandomValues(iv);
   const key = await deriveKey(password, salt);
   const encoder = new TextEncoder();
@@ -163,11 +170,11 @@ let _lockTimeoutMs = 5 * 60 * 1000;
 
 export function setLockTimeout(ms) {
   _lockTimeoutMs = ms;
-  localStorage.setItem('sw_lock_timeout', String(ms));
+  localStorage.setItem(LOCK_TIMEOUT_KEY, String(ms));
 }
 
 export function getLockTimeout() {
-  const saved = localStorage.getItem('sw_lock_timeout');
+  const saved = localStorage.getItem(LOCK_TIMEOUT_KEY);
   return saved ? parseInt(saved) : _lockTimeoutMs;
 }
 
@@ -194,7 +201,7 @@ export function getPrivacyPolicy() {
   return `
 # SpendWise — Privacy Policy
 
-Last updated: ${new Date().toISOString().slice(0,10)}
+Last updated: ${today()}
 
 ## Data Collection
 SpendWise does **NOT** collect, store, or transmit any personal data to external servers. All data is stored locally on your device.

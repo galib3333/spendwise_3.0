@@ -1,6 +1,5 @@
 // ===== KEYBOARD SHORTCUTS =====
 import { navigate } from './router.js';
-import { toastInfo } from './toast.js';
 
 const SHORTCUTS = [
   { key: '1', ctrl: false, action: () => navigate('dashboard'), label: 'Dashboard' },

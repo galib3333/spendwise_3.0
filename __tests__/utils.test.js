@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   uid, fmt, fmtShort, today, formatDate,
   getCat, getWeekDates, escapeCSV, parseCSVSimple,
-  detectBankFormat, mapCSVRow,
   validateTransaction, validateBudget, validateGoal, validateRecurring,
   sanitizeImportData, EXPENSE_CATS, INCOME_CATS, ALL_CATS, PAYMENT_LABELS
 } from '../js/utils.js';
@@ -222,7 +221,7 @@ describe('constants', () => {
   it('has 23 total categories', () => {
     expect(ALL_CATS).toHaveLength(23);
   });
-  it('has 10 payment methods', () => {
-    expect(Object.keys(PAYMENT_LABELS)).toHaveLength(10);
+  it('has 11 payment methods', () => {
+    expect(Object.keys(PAYMENT_LABELS)).toHaveLength(11);
   });
 });

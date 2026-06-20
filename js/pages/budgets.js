@@ -1,14 +1,14 @@
 // ===== BUDGETS PAGE =====
 import { getBudgets, addBudget, updateBudget, deleteBudget, getTransactions, getSettings } from '../store.js';
-import { fmt, getCat, EXPENSE_CATS, validateBudget, uid } from '../utils.js';
+import { fmt, getCat, EXPENSE_CATS, validateBudget, uid, getMonthStart, getMonthEnd } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastInfo, toastError } from '../toast.js';
 import { openModal, closeModal } from '../modals.js';
+import { renderCatOptions } from '../helpers.js';
 
 function getMonthExpenses() {
-  const now = new Date();
-  const monthStart = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const monthStart = getMonthStart();
+  const monthEnd = getMonthEnd();
   return getTransactions().filter(t => t.type === 'expense' && t.date >= monthStart && t.date <= monthEnd);
 }
 
@@ -16,7 +16,7 @@ function openAddBudget() {
   document.getElementById('budgetEditId').value = '';
   document.getElementById('budgetAmount').value = '';
   const sel = document.getElementById('budgetCategory');
-  sel.innerHTML = EXPENSE_CATS.map(c => `<option value="${c.id}">${c.icon} ${escapeHTML(c.name)}</option>`).join('');
+  sel.innerHTML = renderCatOptions(EXPENSE_CATS);
   const used = getBudgets().map(b => b.category);
   Array.from(sel.options).forEach(o => { if(used.includes(o.value)) o.disabled = true; });
   openModal('budgetModal');
@@ -27,8 +27,7 @@ function openEditBudget(id) {
   if(!b) return;
   document.getElementById('budgetEditId').value = b.id;
   const sel = document.getElementById('budgetCategory');
-  sel.innerHTML = EXPENSE_CATS.map(c => `<option value="${c.id}">${c.icon} ${escapeHTML(c.name)}</option>`).join('');
-  sel.value = b.category;
+  sel.innerHTML = renderCatOptions(EXPENSE_CATS, b.category);
   document.getElementById('budgetAmount').value = b.limit;
   openModal('budgetModal');
 }
@@ -50,7 +49,7 @@ function saveBudget() {
     toastSuccess('Budget created');
   }
   closeModal('budgetModal');
-  renderBudgets(document.getElementById('mainContent'));
+  renderBudgets(_budgetContainer);
 }
 
 function deleteBudgetHandler(id) {
@@ -58,15 +57,18 @@ function deleteBudgetHandler(id) {
   const removed = deleteBudget(id);
   if(removed) {
     toastInfo('Budget deleted', {
-      action: () => { addBudget(removed); renderBudgets(document.getElementById('mainContent')); },
+      action: () => { addBudget(removed); renderBudgets(_budgetContainer); },
       actionLabel: 'Undo',
       duration: 5000
     });
   }
-  renderBudgets(document.getElementById('mainContent'));
+  renderBudgets(_budgetContainer);
 }
 
+let _budgetContainer = null;
+
 export function renderBudgets(container) {
+  _budgetContainer = container;
   const settings = getSettings();
   const now = new Date();
   const monthExp = getMonthExpenses();

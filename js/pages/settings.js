@@ -2,10 +2,12 @@
 import { getSettings, updateSettings, clearAllData } from '../store.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess } from '../toast.js';
+import { confirmModal } from '../helpers.js';
 import { hasPIN, isLockEnabled, getLockTimeout, setLockTimeout, getPrivacyPolicy } from '../security.js';
 import { changePIN, disableLock, showLockScreen } from '../lockscreen.js';
+import { renderGmailStatus } from '../banking/gmail-auth.js';
 
-function applyTheme() {
+export function applyTheme() {
   const settings = getSettings();
   document.documentElement.setAttribute('data-theme', settings.theme);
   const toggle = document.getElementById('themeToggle');
@@ -89,6 +91,21 @@ export function renderSettings(container) {
         </div>
 
         <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
+        <h3 style="margin-bottom:16px">Integrations</h3>
+
+        <div class="input-group">
+          <label>Gmail Auto-Import (bKash / EBL)</label>
+          ${renderGmailStatus()}
+          <p class="text-sm text-muted" style="margin:8px 0 0">Auto-import transactions from bKash and EBL email notifications.</p>
+        </div>
+
+        <div class="input-group">
+          <label for="gmailClientId">Gmail OAuth Client ID</label>
+          <input type="text" class="input" id="gmailClientId" placeholder="123456789-abcdef.apps.googleusercontent.com" value="${escapeHTML(localStorage.getItem('sw_gmail_client_id') || '')}">
+          <p class="text-sm text-muted" style="margin:4px 0 0">From Google Cloud Console → Credentials → OAuth 2.0</p>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
         <h3 style="margin-bottom:16px">Legal</h3>
         <button class="btn btn-secondary" id="privacyPolicyBtn">Privacy Policy</button>
 
@@ -159,8 +176,8 @@ export function renderSettings(container) {
   });
 
   // Remove PIN
-  document.getElementById('removePinBtn')?.addEventListener('click', () => {
-    if(confirm('Remove PIN lock? Your data will no longer be protected.')) {
+  document.getElementById('removePinBtn')?.addEventListener('click', async () => {
+    if (await confirmModal('Remove PIN lock? Your data will no longer be protected.', { confirmText: 'Remove' })) {
       disableLock();
       renderSettings(container);
       toastSuccess('PIN removed');
@@ -184,14 +201,23 @@ export function renderSettings(container) {
     overlay.querySelector('#privacyCloseBtn')?.addEventListener('click', () => overlay.remove());
   });
 
+  // Gmail Client ID
+  document.getElementById('gmailClientId')?.addEventListener('change', e => {
+    const val = e.target.value.trim();
+    if (val) {
+      localStorage.setItem('sw_gmail_client_id', val);
+    } else {
+      localStorage.removeItem('sw_gmail_client_id');
+    }
+    toastSuccess('Gmail Client ID saved');
+  });
+
   // Reset data
-  document.getElementById('resetDataBtn')?.addEventListener('click', () => {
-    if(confirm('Delete ALL data? This cannot be undone.')) {
+  document.getElementById('resetDataBtn')?.addEventListener('click', async () => {
+    if (await confirmModal('Delete ALL data? This cannot be undone.', { confirmText: 'Delete All' })) {
       clearAllData();
       toastSuccess('All data cleared');
       applyTheme();
     }
   });
 }
-
-export { applyTheme };

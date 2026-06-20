@@ -1,18 +1,18 @@
 // ===== TOAST NOTIFICATION SYSTEM =====
-let toastContainer = null;
+let _toastContainer = null;
 const toastQueue = [];
 const MAX_TOASTS = 5;
 
 function ensureContainer() {
-  if(!toastContainer) {
-    toastContainer = document.createElement('div');
-    toastContainer.id = 'toast-container';
-    toastContainer.setAttribute('role', 'status');
-    toastContainer.setAttribute('aria-live', 'polite');
-    toastContainer.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:10000;display:flex;flex-direction:column-reverse;gap:8px;pointer-events:none;';
-    document.body.appendChild(toastContainer);
+  if(!_toastContainer) {
+    _toastContainer = document.createElement('div');
+    _toastContainer.id = 'toast-container';
+    _toastContainer.setAttribute('role', 'status');
+    _toastContainer.setAttribute('aria-live', 'polite');
+    _toastContainer.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:10000;display:flex;flex-direction:column-reverse;gap:8px;pointer-events:none;';
+    document.body.appendChild(_toastContainer);
   }
-  return toastContainer;
+  return _toastContainer;
 }
 
 export function showToast(message, options = {}) {

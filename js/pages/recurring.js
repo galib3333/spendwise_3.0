@@ -1,17 +1,18 @@
 // ===== RECURRING PAGE =====
-import { getRecurringList, addRecurring, updateRecurring, deleteRecurring, toggleRecurringActive, getSettings } from '../store.js';
-import { fmt, getCat, EXPENSE_CATS, validateRecurring, uid, today } from '../utils.js';
+import { getRecurringList, addRecurring, updateRecurring, deleteRecurring, toggleRecurringActive, getSettings, getLoans } from '../store.js';
+import { fmt, getCat, EXPENSE_CATS, validateRecurring, uid, today, parseLocalDate } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastInfo, toastError } from '../toast.js';
 import { openModal, closeModal } from '../modals.js';
+import { renderCatOptions } from '../helpers.js';
 
 const FREQ_MULT = { weekly: 4.33, biweekly: 2.16, monthly: 1, quarterly: 0.33, yearly: 0.083 };
 const FREQ_PER_YEAR = { weekly: 52, biweekly: 26, monthly: 12, quarterly: 4, yearly: 1 };
 const FREQ_LABELS = { weekly: 'Weekly', biweekly: 'Bi-Weekly', monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' };
 
 function monthsBetween(a, b) {
-  const da = new Date(a + 'T00:00:00');
-  const db = new Date(b + 'T00:00:00');
+  const da = parseLocalDate(a);
+  const db = parseLocalDate(b);
   return (db.getFullYear() - da.getFullYear()) * 12 + (db.getMonth() - da.getMonth());
 }
 
@@ -38,7 +39,7 @@ function openAddRecurring() {
   document.getElementById('recNext').value = today();
   document.getElementById('recEnd').value = '';
   const sel = document.getElementById('recCategory');
-  sel.innerHTML = EXPENSE_CATS.map(c => `<option value="${c.id}">${c.icon} ${escapeHTML(c.name)}</option>`).join('');
+  sel.innerHTML = renderCatOptions(EXPENSE_CATS);
   openModal('recurringModal');
 }
 
@@ -53,8 +54,7 @@ function openEditRecurring(id) {
   document.getElementById('recNext').value = r.nextDate;
   document.getElementById('recEnd').value = r.endDate || '';
   const sel = document.getElementById('recCategory');
-  sel.innerHTML = EXPENSE_CATS.map(c => `<option value="${c.id}">${c.icon} ${escapeHTML(c.name)}</option>`).join('');
-  sel.value = r.category;
+  sel.innerHTML = renderCatOptions(EXPENSE_CATS, r.category);
   openModal('recurringModal');
 }
 
@@ -81,7 +81,7 @@ function saveRecurring() {
     toastSuccess('Recurring expense added');
   }
   closeModal('recurringModal');
-  renderRecurring(document.getElementById('mainContent'));
+  renderRecurring(_recurringContainer);
 }
 
 function deleteRecurringHandler(id) {
@@ -89,18 +89,20 @@ function deleteRecurringHandler(id) {
   const removed = deleteRecurring(id);
   if(removed) {
     toastInfo('Recurring deleted', {
-      action: () => { addRecurring(removed); renderRecurring(document.getElementById('mainContent')); },
+      action: () => { addRecurring(removed); renderRecurring(_recurringContainer); },
       actionLabel: 'Undo',
       duration: 5000
     });
   }
-  renderRecurring(document.getElementById('mainContent'));
+  renderRecurring(_recurringContainer);
 }
 
 function toggleHandler(id) {
   toggleRecurringActive(id);
-  renderRecurring(document.getElementById('mainContent'));
+  renderRecurring(_recurringContainer);
 }
+
+let _recurringContainer = null;
 
 let _saveBtnBound = false;
 function bindSaveBtnOnce() {
@@ -110,9 +112,12 @@ function bindSaveBtnOnce() {
 }
 
 export function renderRecurring(container) {
+  _recurringContainer = container;
   const settings = getSettings();
   const recurringList = getRecurringList();
   const active = recurringList.filter(r => r.active);
+  const loans = getLoans();
+  const loanMap = Object.fromEntries(loans.map(l => [l.id, l]));
 
   const monthlyTotal = active.reduce((s, r) => s + r.amount * (FREQ_MULT[r.frequency] || 1), 0);
   const yearlyTotal = active.reduce((s, r) => s + remainingCost(r), 0);
@@ -136,12 +141,16 @@ export function renderRecurring(container) {
           const cat = getCat(r.category);
           const rm = remainingMonths(r);
           const endDateLabel = r.endDate ? ` · Ends ${r.endDate}` : ' · Ongoing';
+          const linkedLoan = r.loanId ? loanMap[r.loanId] : null;
+          const loanBadge = linkedLoan
+            ? `<span style="display:inline-block;padding:1px 6px;border-radius:8px;font-size:0.6rem;font-weight:600;background:var(--accent)22;color:var(--accent);margin-left:4px">${linkedLoan.type === 'lent' ? '📤' : '📥'} ${escapeHTML(linkedLoan.person)}</span>`
+            : '';
           return `
             <div class="recurring-row flex flex-center flex-between" style="padding:14px 0;border-bottom:1px solid var(--border)">
               <div class="flex flex-center gap-12">
                 <div class="transaction-icon" style="background:${cat.color}22;color:${cat.color}" aria-hidden="true">${cat.icon}</div>
                 <div>
-                  <div style="font-weight:600">${escapeHTML(r.description)}</div>
+                  <div style="font-weight:600">${escapeHTML(r.description)}${loanBadge}</div>
                   <div class="text-sm text-muted">${escapeHTML(cat.name)} · ${escapeHTML(FREQ_LABELS[r.frequency] || r.frequency)}${endDateLabel}</div>
                 </div>
               </div>

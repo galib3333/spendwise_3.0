@@ -165,7 +165,7 @@ body::before {
   height: 14px;
 }
 
-.nav { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.nav { flex: 1; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; }
 
 .nav-item {
   display: flex;
@@ -220,6 +220,28 @@ body::before {
   color: var(--text3);
   padding: 20px 12px 6px;
   opacity: 0.6;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  transition: opacity var(--transition);
+}
+
+.nav-section:hover { opacity: 1; }
+
+.nav-section::after {
+  content: '▾';
+  font-size: 0.5rem;
+  transition: transform 0.2s;
+}
+
+.nav-section.collapsed::after {
+  transform: rotate(-90deg);
+}
+
+.nav-item.section-hidden {
+  display: none;
 }
 
 .sidebar-footer {

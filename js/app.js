@@ -1,14 +1,22 @@
 // ===== MAIN APPLICATION ENTRY POINT =====
-import { initStore, getSettings, updateSettings, addTransaction, getTransactions, getRecurringList, addBulkTransactions, updateRecurring, addRecurring, getAppMode, setAppMode } from './store.js';
+import { initStore, getSettings, updateSettings, addTransaction, getTransactions, getRecurringList, addBulkTransactions, updateRecurring, addRecurring, getAppMode, setAppMode, getLoans, updateLoan } from './store.js';
 import { initRouter, navigate, registerPage } from './router.js';
 import { initModals } from './modals.js';
 import { setChartUtils } from './charts.js';
-import { fmt, fmtShort, EXPENSE_CATS, validateTransaction, uid, today } from './utils.js';
+import { fmt, fmtShort, EXPENSE_CATS, validateTransaction, uid, today, parseLocalDate } from './utils.js';
 import { applyTheme } from './pages/settings.js';
 import { toastSuccess, toastError, toastWarning } from './toast.js';
 import { initLockScreen, lockApp, resetLockTimer, stopLockTimer } from './lockscreen.js';
+import { isLockEnabled, isLocked } from './security.js';
 import { initKeyboardShortcuts } from './shortcuts.js';
 import { shouldShowOnboarding, showOnboarding } from './onboarding.js';
+
+const BLUR_DELAY_MS = 2000;
+const MS_PER_DAY = 86400000;
+const BACKUP_REMINDER_DELAY_MS = 5000;
+const ONBOARDING_DELAY_MS = 1000;
+const LAST_BACKUP_KEY = 'sw_last_backup';
+const BACKUP_REMINDER_DAYS = 7;
 
 // ===== GLOBAL ERROR HANDLER =====
 function setupErrorHandling() {
@@ -35,33 +43,58 @@ import { renderSavings } from './pages/savings.js';
 import { renderExport } from './pages/export-page.js';
 import { renderSettings } from './pages/settings.js';
 import { renderBusiness, renderBizExpenses, renderBizSales, renderBizReports } from './pages/business.js';
+import { renderBanking } from './pages/banking.js';
+import { renderLoans } from './pages/loans.js';
 
 // ===== RECURRING PROCESSING =====
 function processRecurring() {
   const now = today();
   const newTransactions = [];
   const recurringList = getRecurringList();
+  const loans = getLoans();
 
   recurringList.forEach(r => {
     if(!r.active) return;
     if(r.nextDate <= now) {
-      // Skip if past end date
       if(r.endDate && r.nextDate > r.endDate) return;
 
+      let txnType = 'expense';
+      let txnDescription = r.description + ' (auto)';
+      if (r.loanId) {
+        const loan = loans.find(l => l.id === r.loanId);
+        if (loan) {
+          txnType = loan.type === 'lent' ? 'income' : 'expense';
+          txnDescription = loan.type === 'lent'
+            ? `Loan repayment from ${loan.person || 'someone'} (auto)`
+            : `Loan payment to ${loan.person || 'someone'} (auto)`;
+        }
+      }
       newTransactions.push({
         id: uid(),
-        type: 'expense',
+        type: txnType,
         amount: r.amount,
         date: r.nextDate,
         category: r.category,
         payment: 'auto',
-        description: r.description + ' (auto)',
-        tags: ['recurring'],
+        description: txnDescription,
+        tags: r.loanId ? ['recurring', 'loan'] : ['recurring'],
         recurring: true,
         frequency: r.frequency
       });
 
-      const d = new Date(r.nextDate + 'T00:00:00');
+      if (r.loanId) {
+        const loan = loans.find(l => l.id === r.loanId);
+        if (loan) {
+          const newPaid = loan.paid + r.amount;
+          updateLoan(r.loanId, {
+            paid: newPaid,
+            status: newPaid >= loan.amount ? 'settled' : loan.status,
+            updatedAt: new Date().toISOString()
+          });
+        }
+      }
+
+      const d = parseLocalDate(r.nextDate);
       switch(r.frequency) {
         case 'weekly': d.setDate(d.getDate() + 7); break;
         case 'biweekly': d.setDate(d.getDate() + 14); break;
@@ -69,9 +102,8 @@ function processRecurring() {
         case 'quarterly': d.setMonth(d.getMonth() + 3); break;
         case 'yearly': d.setFullYear(d.getFullYear() + 1); break;
       }
-      const nextDateStr = d.toISOString().slice(0, 10);
+      const nextDateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
-      // If past end date, deactivate instead of advancing
       if(r.endDate && nextDateStr > r.endDate) {
         updateRecurring(r.id, { active: false, nextDate: nextDateStr });
       } else {
@@ -122,7 +154,7 @@ function setupLifecycleLocks() {
     if(!isLockEnabled() || isLocked()) return;
     _blurTimeout = setTimeout(() => {
       if(!_lockPaused && isLockEnabled() && !isLocked()) lockApp();
-    }, 2000);
+    }, BLUR_DELAY_MS);
   });
   window.addEventListener('focus', () => {
     if(_blurTimeout) { clearTimeout(_blurTimeout); _blurTimeout = null; }
@@ -226,7 +258,15 @@ const PERSONAL_NAV = `
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
     Savings Goals
   </div>
+  <div class="nav-item" data-page="loans" role="menuitem" tabindex="0">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+    Loans & Debts
+  </div>
   <div class="nav-section" role="separator">Tools</div>
+  <div class="nav-item" data-page="banking" role="menuitem" tabindex="0">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg>
+    Banking
+  </div>
   <div class="nav-item" data-page="export" role="menuitem" tabindex="0">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
     Export Data
@@ -257,6 +297,10 @@ const BUSINESS_NAV = `
     Reports
   </div>
   <div class="nav-section" role="separator">Tools</div>
+  <div class="nav-item" data-page="banking" role="menuitem" tabindex="0">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg>
+    Banking
+  </div>
   <div class="nav-item" data-page="export" role="menuitem" tabindex="0">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
     Export Data
@@ -266,6 +310,36 @@ const BUSINESS_NAV = `
     Settings
   </div>
 `;
+
+function initCollapsibleSections(nav, mode) {
+  const STORAGE_KEY = `sw_nav_collapsed_${mode}`;
+  let collapsed = {};
+  try { collapsed = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch {}
+
+  function applyCollapse() {
+    nav.querySelectorAll('.nav-section').forEach(section => {
+      const label = section.textContent.trim();
+      const isCollapsed = !!collapsed[label];
+      section.classList.toggle('collapsed', isCollapsed);
+      let next = section.nextElementSibling;
+      while (next && !next.classList.contains('nav-section')) {
+        next.classList.toggle('section-hidden', isCollapsed);
+        next = next.nextElementSibling;
+      }
+    });
+  }
+
+  nav.querySelectorAll('.nav-section').forEach(section => {
+    section.addEventListener('click', () => {
+      const label = section.textContent.trim();
+      collapsed[label] = !collapsed[label];
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(collapsed)); } catch {}
+      applyCollapse();
+    });
+  });
+
+  applyCollapse();
+}
 
 function setupModeToggle() {
   const modeToggle = document.getElementById('modeToggle');
@@ -302,20 +376,19 @@ function setupModeToggle() {
         }
       });
     });
+    initCollapsibleSections(nav, mode);
   }
 }
 
 // ===== BACKUP REMINDER =====
 function checkBackupReminder() {
-  const LAST_BACKUP_KEY = 'sw_last_backup';
-  const REMINDER_DAYS = 7;
   const lastBackup = localStorage.getItem(LAST_BACKUP_KEY);
   const now = Date.now();
 
-  if (!lastBackup || (now - parseInt(lastBackup)) > REMINDER_DAYS * 86400000) {
+  if (!lastBackup || (now - parseInt(lastBackup)) > BACKUP_REMINDER_DAYS * MS_PER_DAY) {
     setTimeout(() => {
       toastWarning('Consider backing up your data. Go to Export to download a backup.', {
-        duration: 8000,
+        duration: BACKUP_REMINDER_DELAY_MS,
         action: () => {
           navigate('export');
           localStorage.setItem(LAST_BACKUP_KEY, String(now));
@@ -327,7 +400,7 @@ function checkBackupReminder() {
 }
 
 export function markBackupDone() {
-  localStorage.setItem('sw_last_backup', String(Date.now()));
+  localStorage.setItem(LAST_BACKUP_KEY, String(Date.now()));
 }
 
 // ===== MIGRATION: Sync orphaned recurring transactions =====
@@ -352,7 +425,7 @@ function syncOrphanedRecurring() {
     if(hasEntry) return;
 
     const freq = t.frequency || 'monthly';
-    const next = new Date(t.date + 'T00:00:00');
+    const next = parseLocalDate(t.date);
     switch(freq) {
       case 'weekly': next.setDate(next.getDate() + 7); break;
       case 'biweekly': next.setDate(next.getDate() + 14); break;
@@ -367,7 +440,7 @@ function syncOrphanedRecurring() {
       frequency: freq,
       category: t.category,
       startDate: t.date,
-      nextDate: next.toISOString().slice(0, 10),
+      nextDate: `${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,'0')}-${String(next.getDate()).padStart(2,'0')}`,
       endDate: null,
       active: true
     });
@@ -399,6 +472,8 @@ async function init() {
   registerPage('savings', renderSavings);
   registerPage('export', renderExport);
   registerPage('settings', renderSettings);
+  registerPage('banking', renderBanking);
+  registerPage('loans', renderLoans);
   registerPage('business', renderBusiness);
   registerPage('biz-expenses', renderBizExpenses);
   registerPage('biz-sales', renderBizSales);
@@ -430,7 +505,7 @@ async function init() {
 
     // Show onboarding for first-time users
     if (shouldShowOnboarding()) {
-      setTimeout(() => showOnboarding(), 1000);
+      setTimeout(() => showOnboarding(), ONBOARDING_DELAY_MS);
     }
   });
 }

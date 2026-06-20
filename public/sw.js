@@ -1,15 +1,6 @@
-const CACHE_NAME = 'spendwise-v6';
-const PRECACHE = [
-  '/',
-  '/index.html',
-  '/expense-tracker.css',
-  '/manifest.json'
-];
+const CACHE_NAME = 'spendwise-v7';
 
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(PRECACHE))
-  );
   self.skipWaiting();
 });
 
@@ -26,8 +17,6 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
-
-  // Skip non-GET requests
   if (event.request.method !== 'GET') return;
 
   event.respondWith(

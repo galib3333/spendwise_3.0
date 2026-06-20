@@ -2,8 +2,8 @@
 // Falls back to localStorage if IndexedDB is unavailable
 
 const DB_NAME = 'spendwise';
-const DB_VERSION = 2;
-const STORES = ['transactions', 'budgets', 'savingsGoals', 'recurringList', 'settings', 'businessProfile', 'businessTransactions', 'businessCategories'];
+const DB_VERSION = 4;
+const STORES = ['transactions', 'budgets', 'savingsGoals', 'recurringList', 'settings', 'businessProfile', 'businessTransactions', 'businessCategories', 'bankAccounts', 'bankTransactions', 'loans'];
 
 let db = null;
 let useIndexedDB = true;
@@ -75,14 +75,26 @@ function idbPut(storeName, data) {
 function idbPutAll(storeName, items) {
   return new Promise((resolve, reject) => {
     if (!db) return resolve();
-    const tx = db.transaction(storeName, 'readwrite');
-    const store = tx.objectStore(storeName);
-    store.clear();
-    for (const item of items) {
-      store.put(item);
+    try {
+      const tx = db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      store.clear();
+      for (const item of items) {
+        store.put(item);
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => {
+        console.error(`idbPutAll(${storeName}) transaction error:`, tx.error);
+        reject(tx.error);
+      };
+      tx.onabort = () => {
+        console.error(`idbPutAll(${storeName}) transaction aborted:`, tx.error);
+        reject(tx.error || new Error('Transaction aborted'));
+      };
+    } catch (e) {
+      console.error(`idbPutAll(${storeName}) failed:`, e);
+      reject(e);
     }
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
   });
 }
 
@@ -136,7 +148,8 @@ export async function dbGetAll(storeName) {
   if (!useIndexedDB || !db) return null;
   try {
     return await idbGetAll(storeName);
-  } catch {
+  } catch (err) {
+    console.error(`dbGetAll(${storeName}) failed:`, err);
     return null;
   }
 }
@@ -146,7 +159,8 @@ export async function dbPut(storeName, data) {
   try {
     await idbPut(storeName, data);
     return true;
-  } catch {
+  } catch (err) {
+    console.error(`dbPut(${storeName}) failed:`, err);
     return false;
   }
 }
@@ -156,7 +170,8 @@ export async function dbPutAll(storeName, items) {
   try {
     await idbPutAll(storeName, items);
     return true;
-  } catch {
+  } catch (err) {
+    console.error(`dbPutAll(${storeName}) failed:`, err);
     return false;
   }
 }
@@ -166,7 +181,8 @@ export async function dbDelete(storeName, id) {
   try {
     await idbDelete(storeName, id);
     return true;
-  } catch {
+  } catch (err) {
+    console.error(`dbDelete(${storeName}) failed:`, err);
     return false;
   }
 }
@@ -176,7 +192,8 @@ export async function dbClear(storeName) {
   try {
     await idbClear(storeName);
     return true;
-  } catch {
+  } catch (err) {
+    console.error(`dbClear(${storeName}) failed:`, err);
     return false;
   }
 }
@@ -185,7 +202,8 @@ export async function dbGetSetting(key) {
   if (!useIndexedDB || !db) return undefined;
   try {
     return await idbGetSetting(key);
-  } catch {
+  } catch (err) {
+    console.error(`dbGetSetting(${key}) failed:`, err);
     return undefined;
   }
 }
@@ -195,7 +213,8 @@ export async function dbSetSetting(key, value) {
   try {
     await idbSetSetting(key, value);
     return true;
-  } catch {
+  } catch (err) {
+    console.error(`dbSetSetting(${key}) failed:`, err);
     return false;
   }
 }

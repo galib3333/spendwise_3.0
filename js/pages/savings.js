@@ -1,6 +1,6 @@
 // ===== SAVINGS GOALS PAGE =====
 import { getSavingsGoals, addGoal, updateGoal, deleteGoal, getTransactions, getSettings } from '../store.js';
-import { fmt, validateGoal, uid, today } from '../utils.js';
+import { fmt, validateGoal, uid, today, getMonthStart, getMonthEnd } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastInfo, toastError } from '../toast.js';
 import { openModal, closeModal } from '../modals.js';
@@ -44,7 +44,7 @@ function saveGoal() {
     toastSuccess('Goal created');
   }
   closeModal('savingsModal');
-  renderSavings(document.getElementById('mainContent'));
+  renderSavings(_savingsContainer);
 }
 
 function deleteGoalHandler(id) {
@@ -52,13 +52,15 @@ function deleteGoalHandler(id) {
   const removed = deleteGoal(id);
   if(removed) {
     toastInfo('Goal deleted', {
-      action: () => { addGoal(removed); renderSavings(document.getElementById('mainContent')); },
+      action: () => { addGoal(removed); renderSavings(_savingsContainer); },
       actionLabel: 'Undo',
       duration: 5000
     });
   }
-  renderSavings(document.getElementById('mainContent'));
+  renderSavings(_savingsContainer);
 }
+
+let _savingsContainer = null;
 
 function getSavingsTrend() {
   const now = new Date();
@@ -69,8 +71,8 @@ function getSavingsTrend() {
 
   for(let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const ms = d.toISOString().slice(0, 7) + '-01';
-    const me = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+    const ms = getMonthStart(-i);
+    const me = getMonthEnd(-i);
 
     const monthExp = getTransactions().filter(t => t.type === 'expense' && t.date >= ms && t.date <= me).reduce((s, t) => s + t.amount, 0);
     const monthInc = getTransactions().filter(t => t.type === 'income' && t.date >= ms && t.date <= me).reduce((s, t) => s + t.amount, 0);
@@ -84,6 +86,7 @@ function getSavingsTrend() {
 }
 
 export function renderSavings(container) {
+  _savingsContainer = container;
   const settings = getSettings();
   const savingsGoals = getSavingsGoals();
   const totalSaved = savingsGoals.reduce((s, g) => s + g.current, 0);
