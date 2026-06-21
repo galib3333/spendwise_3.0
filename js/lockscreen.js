@@ -39,21 +39,20 @@ function showError(msg) {
 
 // ===== DOT RENDERING =====
 
-function renderDots(count, max) {
-  if (!max) max = MAX_PIN;
+function renderDots(count) {
   let html = '<div class="pin-dots">';
-  for (let i = 0; i < max; i++) {
-    html += `<div class="pin-dot ${i < count ? 'filled' : ''}"></div>`;
+  for (let i = 0; i < count; i++) {
+    html += `<div class="pin-dot filled"></div>`;
   }
   html += '</div>';
   return html;
 }
 
 function updateDots() {
-  document.querySelectorAll('.pin-dot').forEach((dot, i) => {
-    dot.classList.toggle('filled', i < _pin.length);
-    dot.classList.remove('error');
-  });
+  const container = document.querySelector('.pin-dots');
+  if (container) {
+    container.outerHTML = renderDots(_pin.length);
+  }
 }
 
 // ===== PIN PAD =====
@@ -109,7 +108,7 @@ function bindPinKeys() {
       handleKeyInput('del');
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (!_processing && _pin.length >= MIN_PIN && (_step === 'enter' || _step === 'change')) {
+      if (!_processing && _pin.length >= MIN_PIN && (_step === 'enter' || _step === 'change' || _step === 'setup')) {
         handlePinComplete();
       }
     }
@@ -276,7 +275,7 @@ function renderConfirmScreen() {
     ${unlockSVG}
     <h2>Confirm PIN</h2>
     <p>Re-enter your PIN to confirm</p>
-    ${renderDots(_pin.length, _setupPin.length)}
+    ${renderDots(_pin.length)}
     <div class="lock-error" id="lockError"></div>
     ${renderPinPad()}
   `;
@@ -472,6 +471,7 @@ function showPrivacyModal() {
   const policy = getPrivacyPolicy();
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay show';
+  overlay.style.zIndex = '10001';
   overlay.innerHTML = `<div class="modal" style="max-width:600px;max-height:80vh;overflow-y:auto">
     <h3>Privacy Policy</h3>
     <div style="color:var(--text2);font-size:0.8rem;line-height:1.6;white-space:pre-wrap">${escapeHTML(policy)}</div>
