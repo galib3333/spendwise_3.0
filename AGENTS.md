@@ -1,6 +1,6 @@
 # SpendWise 3.0 — Codebase Reference
 
-> Last updated: 2026-06-20. This file documents the architecture, conventions, known issues, and gotchas for future development.
+> Last updated: 2026-06-21. This file documents the architecture, conventions, known issues, and gotchas for future development.
 
 ---
 
@@ -14,7 +14,6 @@
 | Storage | IndexedDB (primary) + localStorage (fallback) |
 | PWA | Service worker (`public/sw.js`) — runtime caching only |
 | Deploy | Netlify (auto-deploy from `origin/master`) |
-| Auth | Google Identity Services (GIS) — client-side OAuth implicit flow |
 
 ---
 
@@ -43,30 +42,22 @@ spendwise_3.0/
 │   ├── lockscreen.js       # Lock screen UI and PIN flow
 │   ├── shortcuts.js        # Keyboard shortcuts
 │   ├── onboarding.js       # First-time user onboarding
-│   ├── banking/
-│   │   ├── email-parser.js     # Parser registry + auto-detection
-│   │   ├── bkb-adapter.js      # bKash email parser
-│   │   ├── ebl-adapter.js      # EBL email parser
-│   │   ├── gmail-auth.js       # Google OAuth (GIS implicit flow)
-│   │   ├── gmail-fetcher.js    # Gmail API fetch + parse
-│   │   └── balance-tracker.js  # Running balance calculator
 │   └── pages/
-│       ├── dashboard.js        # Main dashboard
-│       ├── transactions.js     # Transaction list + CRUD
-│       ├── reports.js          # Weekly/monthly/yearly reports
-│       ├── budgets.js          # Budget management
-│       ├── recurring.js        # Recurring expenses
-│       ├── savings.js          # Savings goals
-│       ├── settings.js         # App settings
-│       ├── export-page.js      # Export/import/backup
-│       ├── business.js         # Business mode pages
-│       └── banking.js          # Banking dashboard
+│       ├── dashboard.js    # Main dashboard
+│       ├── transactions.js # Transaction list + CRUD
+│       ├── reports.js      # Weekly/monthly/yearly reports
+│       ├── budgets.js      # Budget management
+│       ├── recurring.js    # Recurring expenses
+│       ├── savings.js      # Savings goals
+│       ├── loans.js        # Loans & debts tracking
+│       ├── settings.js     # App settings
+│       ├── export-page.js  # Export/import/backup
+│       └── business.js     # Business mode pages
 └── __tests__/
     ├── utils.test.js
     ├── security.test.js
     ├── sanitize.test.js
-    ├── heavy-traffic.test.js
-    └── email-parser.test.js
+    └── heavy-traffic.test.js
 ```
 
 ---
@@ -137,20 +128,10 @@ export function renderX(container) {
 
 ### Privacy-First
 - **Zero server communication** — all data stays on device
-- No analytics, no telemetry, no remote calls (except Gmail API)
-- Banking module uses Gmail API with user OAuth consent
-
-### Banking Module
-- Gmail API implicit grant flow (no backend needed)
-- Refresh tokens NOT used (implicit flow doesn't provide them)
-- Access token stored in memory only (lost on tab close)
-- `CONNECTED_KEY = 'sw_gmail_connected'` in localStorage
-- Email parsers: `bkb-adapter.js` (bKash), `ebl-adapter.js` (EBL)
-- `detectProvider(from, subject)` → auto-detects provider
-- `parseEmailAuto(subject, body, from, date)` → parses any supported email
+- No analytics, no telemetry, no remote calls
 
 ### IndexedDB Schema
-- Stores: `transactions`, `budgets`, `savingsGoals`, `recurringList`, `settings`, `businessProfile`, `businessTransactions`, `businessCategories`, `bankAccounts`, `bankTransactions`
+- Stores: `transactions`, `budgets`, `savingsGoals`, `recurringList`, `settings`, `businessProfile`, `businessTransactions`, `businessCategories`, `loans`
 - `settings` store is key-value (no `keyPath`)
 - All others use `{ keyPath: 'id' }`
 - `DB_VERSION` in `db.js` — bump when adding stores
@@ -186,12 +167,6 @@ export function renderX(container) {
 - `netlify.toml` overrides Permissions-Policy headers
 - Platform headers may cause CORS issues — `netlify.toml` fixes this
 
-### OAuth Setup
-- User type MUST be "External" for personal Gmail accounts
-- Test users must be added AND accept invitation email
-- App stays in "Testing" mode — no Google review needed for personal use
-- Client ID stored in `localStorage` under `sw_gmail_client_id`
-
 ---
 
 ## When Refactoring
@@ -200,7 +175,7 @@ export function renderX(container) {
 2. **Check all date handling** — use `parseLocalDate()`/`toDateStr()`, NEVER `toISOString().slice(0,10)`
 3. **Check imports** — unused imports cause warnings, missing imports cause runtime crashes
 4. **Check null safety** — use `?.` for DOM queries that may not exist
-5. **Check event listener cleanup** — prevent stacking (see `modals.js`, `banking.js`)
+5. **Check event listener cleanup** — prevent stacking (see `modals.js`)
 6. **Check container refs** — callbacks should use stored refs, not re-query DOM
 7. **Check for `document.getElementById('mainContent')`** — should use `container` param
 8. **Use shared helpers** — `renderCatOptions` from `helpers.js`
@@ -220,9 +195,6 @@ export function renderX(container) {
 | `charts.js` | `Math.max(...data)` can overflow with large arrays — use `reduce` |
 | `security.js` | PIN hash: PBKDF2 (100k iterations) + AES-GCM verification, legacy SHA-256 fallback; data-at-rest encryption: AES-256-GCM; recovery key: 16-char alphanumeric, shown once, never stored |
 | `lockscreen.js` | `handlePinComplete` wraps async calls in try/catch to prevent UI freeze; shows recovery key after PIN setup; "Forgot PIN?" offers recovery key input |
-| `banking.js` | `_unsubscribeConnection` prevents listener stacking on re-render |
-| `gmail-auth.js` | No refresh token — user re-authenticates when token expires (~60min) |
-| `email-parser.js` | Registry pattern — adapters self-register via `registerAdapter()` |
 
 ---
 
@@ -238,7 +210,7 @@ export function renderX(container) {
 - `loanToggleHTML(settings)` — renders the loan toggle button HTML
 - `createModal(html)` — creates dynamic modal overlay, returns `{ overlay, close }`
 - `confirmModal(message, opts)` — async confirmation dialog, returns Promise<boolean>
-- `ICONS` — exported SVG icon strings (edit, delete, plus, close, bank, search, filter, info, chevronLeft/Right, play, pause)
+- `ICONS` — exported SVG icon strings (edit, delete, plus, close, search, filter, info, chevronLeft/Right, play, pause)
 
 ### Date Helpers (`js/utils.js`)
 - `parseLocalDate(dateStr)` — creates Date from `YYYY-MM-DD` string (local time, not UTC)
@@ -263,7 +235,7 @@ function crudOps(key, stateKey) {
   };
 }
 ```
-- Used for: transactions, budgets, savingsGoals, recurringList, businessTransactions, businessCategories, bankAccounts, bankTransactions
+- Used for: transactions, budgets, savingsGoals, recurringList, businessTransactions, businessCategories, loans
 - Each entity gets exported `addX`, `updateX`, `deleteX` functions
 
 ---

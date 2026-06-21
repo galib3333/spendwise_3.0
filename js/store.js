@@ -24,9 +24,6 @@ let state = {
   businessProfile: null, // { id: 'profile', name, type, taxId, address, phone }
   businessTransactions: [],
   businessCategories: [],
-  // Banking state
-  bankAccounts: [], // { id, provider, name, accountNumber, currentBalance, initialBalance, lastSynced, color }
-  bankTransactions: [], // parsed email transactions linked to accounts
   // Loan state
   loans: [] // { id, type, person, phone, amount, paid, rate, startDate, dueDate, status, notes, payments, createdAt, updatedAt }
 };
@@ -85,7 +82,7 @@ export async function initStore() {
     _storageMode = 'indexeddb';
 
     // Load from IndexedDB
-    const [txns, budgets, savings, recurring, bizProfile, bizTxns, bizCats, bankAccts, bankTxns, loansData] = await Promise.all([
+    const [txns, budgets, savings, recurring, bizProfile, bizTxns, bizCats, loansData] = await Promise.all([
       dbGetAll('transactions'),
       dbGetAll('budgets'),
       dbGetAll('savingsGoals'),
@@ -93,8 +90,6 @@ export async function initStore() {
       dbGetSetting('businessProfile'),
       dbGetAll('businessTransactions'),
       dbGetAll('businessCategories'),
-      dbGetAll('bankAccounts'),
-      dbGetAll('bankTransactions'),
       dbGetAll('loans')
     ]);
 
@@ -105,8 +100,6 @@ export async function initStore() {
     state.businessProfile = bizProfile || null;
     state.businessTransactions = bizTxns || [];
     state.businessCategories = bizCats || [];
-    state.bankAccounts = bankAccts || [];
-    state.bankTransactions = bankTxns || [];
     state.loans = loansData || [];
 
     // Migrate old category IDs
@@ -157,8 +150,6 @@ export async function initStore() {
     state.businessProfile = await lsLoadDecrypted('businessProfile', null);
     state.businessTransactions = await lsLoadDecrypted('businessTransactions', []);
     state.businessCategories = await lsLoadDecrypted('businessCategories', []);
-    state.bankAccounts = await lsLoadDecrypted('bankAccounts', []);
-    state.bankTransactions = await lsLoadDecrypted('bankTransactions', []);
     state.loans = await lsLoadDecrypted('loans', []);
   }
 }
@@ -180,8 +171,6 @@ async function persist() {
     if (_dirty.has('businessProfile'))      writes.push(dbSetSetting('businessProfile', state.businessProfile));
     if (_dirty.has('businessTransactions')) writes.push(dbPutAll('businessTransactions', state.businessTransactions));
     if (_dirty.has('businessCategories'))   writes.push(dbPutAll('businessCategories', state.businessCategories));
-    if (_dirty.has('bankAccounts'))         writes.push(dbPutAll('bankAccounts', state.bankAccounts));
-    if (_dirty.has('bankTransactions'))     writes.push(dbPutAll('bankTransactions', state.bankTransactions));
     if (_dirty.has('loans'))               writes.push(dbPutAll('loans', state.loans));
     if (writes.length) await Promise.all(writes);
     _dirty.clear();
@@ -196,8 +185,6 @@ async function persist() {
     if (_dirty.has('businessProfile'))      savePromises.push(lsSaveEncrypted('businessProfile', state.businessProfile));
     if (_dirty.has('businessTransactions')) savePromises.push(lsSaveEncrypted('businessTransactions', state.businessTransactions));
     if (_dirty.has('businessCategories'))   savePromises.push(lsSaveEncrypted('businessCategories', state.businessCategories));
-    if (_dirty.has('bankAccounts'))         savePromises.push(lsSaveEncrypted('bankAccounts', state.bankAccounts));
-    if (_dirty.has('bankTransactions'))     savePromises.push(lsSaveEncrypted('bankTransactions', state.bankTransactions));
     if (_dirty.has('loans'))               savePromises.push(lsSaveEncrypted('loans', state.loans));
     if (savePromises.length) await Promise.all(savePromises);
     _dirty.clear();
@@ -218,8 +205,6 @@ function persistSync() {
       if (_dirty.has('businessProfile'))      savePromises.push(lsSaveEncrypted('businessProfile', state.businessProfile));
       if (_dirty.has('businessTransactions')) savePromises.push(lsSaveEncrypted('businessTransactions', state.businessTransactions));
       if (_dirty.has('businessCategories'))   savePromises.push(lsSaveEncrypted('businessCategories', state.businessCategories));
-      if (_dirty.has('bankAccounts'))         savePromises.push(lsSaveEncrypted('bankAccounts', state.bankAccounts));
-      if (_dirty.has('bankTransactions'))     savePromises.push(lsSaveEncrypted('bankTransactions', state.bankTransactions));
       if (_dirty.has('loans'))               savePromises.push(lsSaveEncrypted('loans', state.loans));
       if (savePromises.length) Promise.all(savePromises).catch(e => console.error('Encrypted sync save failed:', e));
     } else {
@@ -232,8 +217,6 @@ function persistSync() {
       lsSave('businessProfile', state.businessProfile);
       lsSave('businessTransactions', state.businessTransactions);
       lsSave('businessCategories', state.businessCategories);
-      lsSave('bankAccounts', state.bankAccounts);
-      lsSave('bankTransactions', state.bankTransactions);
       lsSave('loans', state.loans);
     }
   } else {
@@ -267,8 +250,6 @@ export function getAppMode() { return state.appMode; }
 export function getBusinessProfile() { return state.businessProfile ? { ...state.businessProfile } : null; }
 export function getBusinessTransactions() { return [...state.businessTransactions]; }
 export function getBusinessCategories() { return [...state.businessCategories]; }
-export function getBankAccounts() { return [...state.bankAccounts]; }
-export function getBankTransactions() { return [...state.bankTransactions]; }
 export function getLoans() { return [...state.loans]; }
 
 // ===== GENERIC CRUD HELPERS =====
@@ -294,8 +275,6 @@ const savingsGoals = crudOps('savingsGoals', 'savingsGoals');
 const recurringList = crudOps('recurringList', 'recurringList');
 const businessTxns = crudOps('businessTransactions', 'businessTransactions');
 const businessCats = crudOps('businessCategories', 'businessCategories');
-const bankAccounts = crudOps('bankAccounts', 'bankAccounts');
-const bankTransactions = crudOps('bankTransactions', 'bankTransactions');
 const loans = crudOps('loans', 'loans');
 
 // ===== TRANSACTIONS =====
@@ -361,32 +340,6 @@ export function addBusinessCategory(data) { businessCats.add(data); }
 export function updateBusinessCategory(id, data) { return businessCats.update(id, data); }
 export function deleteBusinessCategory(id) { return businessCats.remove(id); }
 
-// ===== BANK ACCOUNTS =====
-export function addBankAccount(data) { bankAccounts.add(data); }
-export function updateBankAccount(id, data) { return bankAccounts.update(id, data); }
-export function deleteBankAccount(id) {
-  const removed = bankAccounts.remove(id);
-  if (removed) {
-    state.bankTransactions = state.bankTransactions.filter(t => t.bankAccountId !== id);
-    _dirty.add('bankTransactions');
-    persistSync(); notify('bankTransactions');
-  }
-  return removed;
-}
-
-// ===== BANK TRANSACTIONS =====
-export function addBankTransaction(data) { bankTransactions.add(data); }
-export function addBulkBankTransactions(items) {
-  state.bankTransactions.push(...items);
-  _dirty.add('bankTransactions');
-  persistSync(); notify('bankTransactions');
-}
-export function deleteBankTransaction(id) { return bankTransactions.remove(id); }
-
-export function getBankTransactionsForAccount(accountId) {
-  return state.bankTransactions.filter(t => t.bankAccountId === accountId);
-}
-
 // ===== LOANS =====
 export function addLoan(data) { loans.add(data); }
 export function updateLoan(id, data) { return loans.update(id, data); }
@@ -407,14 +360,12 @@ export function replaceAllData(data) {
   if (data.businessProfile) state.businessProfile = data.businessProfile;
   if (data.businessTransactions) state.businessTransactions = data.businessTransactions;
   if (data.businessCategories) state.businessCategories = data.businessCategories;
-  if (data.bankAccounts) state.bankAccounts = data.bankAccounts;
-  if (data.bankTransactions) state.bankTransactions = data.bankTransactions;
   if (data.loans) state.loans = data.loans;
-  for (const k of ['transactions','budgets','savingsGoals','recurringList','businessProfile','businessTransactions','businessCategories','bankAccounts','bankTransactions','loans']) _dirty.add(k);
+  for (const k of ['transactions','budgets','savingsGoals','recurringList','businessProfile','businessTransactions','businessCategories','loans']) _dirty.add(k);
   persistSync();
   notify('transactions'); notify('budgets'); notify('savingsGoals'); notify('recurringList');
   notify('businessProfile'); notify('businessTransactions'); notify('businessCategories');
-  notify('bankAccounts'); notify('bankTransactions'); notify('loans');
+  notify('loans');
 }
 
 export function clearAllData() {
@@ -425,12 +376,10 @@ export function clearAllData() {
   state.businessProfile = null;
   state.businessTransactions = [];
   state.businessCategories = [];
-  state.bankAccounts = [];
-  state.bankTransactions = [];
   state.loans = [];
   state.settings = { currency: '৳', theme: 'dark', dateFormat: 'YYYY-MM-DD' };
   state.appMode = 'personal';
-  for (const k of ['transactions','budgets','savingsGoals','recurringList','businessProfile','businessTransactions','businessCategories','bankAccounts','bankTransactions','loans','settings','appMode']) _dirty.add(k);
+  for (const k of ['transactions','budgets','savingsGoals','recurringList','businessProfile','businessTransactions','businessCategories','loans','settings','appMode']) _dirty.add(k);
   persistSync();
   // Clear security data
   localStorage.removeItem('sw_salt');
@@ -440,8 +389,6 @@ export function clearAllData() {
   localStorage.removeItem('sw_lock_timeout');
   localStorage.removeItem('sw_recovery_key');
   localStorage.removeItem('sw_recovery_salt');
-  // Clear Gmail data
-  localStorage.removeItem('sw_gmail_connected');
   // Clear IndexedDB if available
   if (_storageMode === 'indexeddb') {
     dbClear('transactions');
@@ -450,11 +397,9 @@ export function clearAllData() {
     dbClear('recurringList');
     dbClear('businessTransactions');
     dbClear('businessCategories');
-    dbClear('bankAccounts');
-    dbClear('bankTransactions');
     dbClear('loans');
   }
   notify('transactions'); notify('budgets'); notify('savingsGoals'); notify('recurringList');
   notify('businessProfile'); notify('businessTransactions'); notify('businessCategories');
-  notify('bankAccounts'); notify('bankTransactions'); notify('loans');
+  notify('loans');
 }

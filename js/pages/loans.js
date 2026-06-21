@@ -1,6 +1,6 @@
 // ===== LOANS PAGE =====
 import { getLoans, addLoan, updateLoan, deleteLoan, getSettings, addTransaction, addRecurring, updateRecurring, deleteRecurring, getRecurringList } from '../store.js';
-import { uid, today, parseLocalDate, toDateStr, fmt, advanceDate } from '../utils.js';
+import { uid, today, parseLocalDate, fmt, advanceDate } from '../utils.js';
 import { escapeHTML } from '../sanitize.js';
 import { toastSuccess, toastError } from '../toast.js';
 import { confirmModal, renderCard, ICONS } from '../helpers.js';

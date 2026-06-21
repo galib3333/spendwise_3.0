@@ -5,7 +5,6 @@ import { toastSuccess } from '../toast.js';
 import { confirmModal } from '../helpers.js';
 import { hasPIN, isLockEnabled, getLockTimeout, setLockTimeout, getPrivacyPolicy, hasRecoveryKey } from '../security.js';
 import { changePIN, disableLock, showLockScreen } from '../lockscreen.js';
-import { renderGmailStatus } from '../banking/gmail-auth.js';
 
 export function applyTheme() {
   const settings = getSettings();
@@ -96,21 +95,6 @@ export function renderSettings(container) {
             ? '<p class="text-sm" style="color:var(--green)">✓ Recovery key is set</p><p class="text-sm text-muted" style="margin:2px 0 0">If you forget your PIN, you can use your recovery key to reset without losing data.</p>'
             : '<p class="text-sm" style="color:var(--yellow)">⚠ No recovery key — if you forget your PIN, all data will be deleted</p><p class="text-sm text-muted" style="margin:2px 0 0">Set a new PIN to generate a recovery key.</p>'
           }
-        </div>
-
-        <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
-        <h3 style="margin-bottom:16px">Integrations</h3>
-
-        <div class="input-group">
-          <label>Gmail Auto-Import (bKash / EBL)</label>
-          ${renderGmailStatus()}
-          <p class="text-sm text-muted" style="margin:8px 0 0">Auto-import transactions from bKash and EBL email notifications.</p>
-        </div>
-
-        <div class="input-group">
-          <label for="gmailClientId">Gmail OAuth Client ID</label>
-          <input type="text" class="input" id="gmailClientId" placeholder="123456789-abcdef.apps.googleusercontent.com" value="${escapeHTML(localStorage.getItem('sw_gmail_client_id') || '')}">
-          <p class="text-sm text-muted" style="margin:4px 0 0">From Google Cloud Console → Credentials → OAuth 2.0</p>
         </div>
 
         <hr style="border:none;border-top:1px solid var(--border);margin:20px 0">
@@ -207,17 +191,6 @@ export function renderSettings(container) {
     document.body.appendChild(overlay);
     overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
     overlay.querySelector('#privacyCloseBtn')?.addEventListener('click', () => overlay.remove());
-  });
-
-  // Gmail Client ID
-  document.getElementById('gmailClientId')?.addEventListener('change', e => {
-    const val = e.target.value.trim();
-    if (val) {
-      localStorage.setItem('sw_gmail_client_id', val);
-    } else {
-      localStorage.removeItem('sw_gmail_client_id');
-    }
-    toastSuccess('Gmail Client ID saved');
   });
 
   // Reset data
