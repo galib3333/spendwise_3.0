@@ -31,47 +31,60 @@ function getSourceInfo(source) {
   return LOAN_SOURCES[source] || LOAN_SOURCES.person;
 }
 
-function calcAmortization(principal, annualRate, numInstallments) {
-  if (!principal || !annualRate || !numInstallments || numInstallments <= 0) return null;
-  const monthlyRate = annualRate / 100 / 12;
+function calcAmortization(principal, monthlyRatePct, numInstallments) {
+  if (!principal || !numInstallments || numInstallments <= 0) return null;
+  const monthlyRate = (monthlyRatePct || 0) / 100;
   if (monthlyRate === 0) {
-    const flat = principal / numInstallments;
+    const flat = Math.round(principal / numInstallments * 100) / 100;
     return Array.from({ length: numInstallments }, (_, i) => ({
       month: i + 1,
-      payment: flat,
-      principal: flat,
+      payment: i === numInstallments - 1 ? Math.round((principal - flat * i) * 100) / 100 : flat,
+      principal: i === numInstallments - 1 ? Math.round((principal - flat * i) * 100) / 100 : flat,
       interest: 0,
-      balance: principal - flat * (i + 1)
+      balance: Math.round((principal - flat * (i + 1)) * 100) / 100
     }));
   }
   const payment = principal * monthlyRate * Math.pow(1 + monthlyRate, numInstallments) / (Math.pow(1 + monthlyRate, numInstallments) - 1);
   const schedule = [];
   let balance = principal;
   for (let i = 0; i < numInstallments; i++) {
-    const interest = balance * monthlyRate;
-    const princ = payment - interest;
-    balance = Math.max(0, balance - princ);
+    const interest = Math.round(balance * monthlyRate * 100) / 100;
+    let princ;
+    if (i === numInstallments - 1) {
+      princ = Math.round(balance * 100) / 100;
+    } else {
+      princ = Math.round((payment - interest) * 100) / 100;
+    }
+    const pay = Math.round((princ + interest) * 100) / 100;
+    balance = Math.round((balance - princ) * 100) / 100;
     schedule.push({
       month: i + 1,
-      payment: Math.round(payment * 100) / 100,
-      principal: Math.round(princ * 100) / 100,
-      interest: Math.round(interest * 100) / 100,
-      balance: Math.round(balance * 100) / 100
+      payment: pay,
+      principal: princ,
+      interest,
+      balance: Math.max(0, balance)
     });
   }
   return schedule;
 }
 
-function getNextDueDate(startDate, frequency, monthOffset) {
+function getInstallmentDates(startDate, dueDate, frequency, numInstallments) {
+  if (!startDate || !frequency || !numInstallments) return [];
+  const baseDay = dueDate ? parseLocalDate(dueDate).getDate() : parseLocalDate(startDate).getDate();
+  const dates = [];
   const d = parseLocalDate(startDate);
-  switch (frequency) {
-    case 'monthly': d.setMonth(d.getMonth() + monthOffset); break;
-    case 'quarterly': d.setMonth(d.getMonth() + monthOffset * 3); break;
-    case 'yearly': d.setFullYear(d.getFullYear() + monthOffset); break;
-    case 'weekly': d.setDate(d.getDate() + monthOffset * 7); break;
-    case 'biweekly': d.setDate(d.getDate() + monthOffset * 14); break;
+  for (let i = 0; i < numInstallments; i++) {
+    switch (frequency) {
+      case 'monthly': d.setMonth(d.getMonth() + 1); break;
+      case 'quarterly': d.setMonth(d.getMonth() + 3); break;
+      case 'yearly': d.setFullYear(d.getFullYear() + 1); break;
+      case 'weekly': d.setDate(d.getDate() + 7); break;
+      case 'biweekly': d.setDate(d.getDate() + 14); break;
+    }
+    const inst = new Date(d.getFullYear(), d.getMonth(), baseDay);
+    dates.push(inst.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
   }
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return dates;
 }
 
 function getDaysLeft(dueDate) {
@@ -315,6 +328,7 @@ function renderLoanList(loans, currency) {
     const freqBadge = getFrequencyBadge(loan.frequency);
     const netAmount = loan.amount - (loan.fee || 0);
     const amortization = calcAmortization(loan.amount, loan.rate, loan.numInstallments);
+    const installmentDates = getInstallmentDates(loan.startDate, loan.dueDate, loan.frequency, loan.numInstallments);
 
     return `
       <div class="panel" style="margin-bottom:12px;border-left:3px solid ${sourceInfo.color}" data-loan-id="${escapeHTML(loan.id)}">
@@ -362,9 +376,9 @@ function renderLoanList(loans, currency) {
           <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:8px">
             <div class="text-sm" style="font-weight:500;margin-bottom:6px">Amortization Schedule</div>
             ${amortization.map((a, i) => {
-              const dueDate = loan.startDate && loan.frequency ? getNextDueDate(loan.startDate, loan.frequency, i + 1) : `Month ${a.month}`;
+              const dateLabel = installmentDates[i] || `Month ${a.month}`;
               return `<div class="flex flex-between text-sm" style="padding:2px 0;border-left:2px solid ${i < Math.ceil(loan.paid / (loan.amount / (loan.numInstallments || 1))) ? 'var(--green)' : 'var(--bg3)'};padding-left:8px;margin-bottom:2px">
-                <span class="text-muted">${dueDate}</span>
+                <span class="text-muted">${dateLabel}</span>
                 <span style="font-weight:500">${fmt(a.payment, currency)}</span>
                 <span class="text-muted text-sm">P${fmt(a.principal, currency)} + I${fmt(a.interest, currency)}</span>
               </div>`;
