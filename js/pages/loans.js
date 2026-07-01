@@ -31,6 +31,49 @@ function getSourceInfo(source) {
   return LOAN_SOURCES[source] || LOAN_SOURCES.person;
 }
 
+function calcAmortization(principal, annualRate, numInstallments) {
+  if (!principal || !annualRate || !numInstallments || numInstallments <= 0) return null;
+  const monthlyRate = annualRate / 100 / 12;
+  if (monthlyRate === 0) {
+    const flat = principal / numInstallments;
+    return Array.from({ length: numInstallments }, (_, i) => ({
+      month: i + 1,
+      payment: flat,
+      principal: flat,
+      interest: 0,
+      balance: principal - flat * (i + 1)
+    }));
+  }
+  const payment = principal * monthlyRate * Math.pow(1 + monthlyRate, numInstallments) / (Math.pow(1 + monthlyRate, numInstallments) - 1);
+  const schedule = [];
+  let balance = principal;
+  for (let i = 0; i < numInstallments; i++) {
+    const interest = balance * monthlyRate;
+    const princ = payment - interest;
+    balance = Math.max(0, balance - princ);
+    schedule.push({
+      month: i + 1,
+      payment: Math.round(payment * 100) / 100,
+      principal: Math.round(princ * 100) / 100,
+      interest: Math.round(interest * 100) / 100,
+      balance: Math.round(balance * 100) / 100
+    });
+  }
+  return schedule;
+}
+
+function getNextDueDate(startDate, frequency, monthOffset) {
+  const d = parseLocalDate(startDate);
+  switch (frequency) {
+    case 'monthly': d.setMonth(d.getMonth() + monthOffset); break;
+    case 'quarterly': d.setMonth(d.getMonth() + monthOffset * 3); break;
+    case 'yearly': d.setFullYear(d.getFullYear() + monthOffset); break;
+    case 'weekly': d.setDate(d.getDate() + monthOffset * 7); break;
+    case 'biweekly': d.setDate(d.getDate() + monthOffset * 14); break;
+  }
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 function getDaysLeft(dueDate) {
   if (!dueDate) return null;
   const now = parseLocalDate(today());
@@ -168,12 +211,22 @@ export function renderLoans(container) {
         </div>
         <div class="form-row">
           <div class="input-group">
+            <label for="loanFee">Processing Fee <span class="text-muted text-sm">(optional, deducted upfront)</span></label>
+            <input type="number" class="input" id="loanFee" placeholder="0.00" step="0.01" min="0">
+          </div>
+          <div class="input-group">
             <label for="loanPaid">Already Paid</label>
             <input type="number" class="input" id="loanPaid" placeholder="0.00" step="0.01" min="0" value="0">
           </div>
+        </div>
+        <div class="form-row">
           <div class="input-group">
             <label for="loanStartDate">Start Date</label>
             <input type="date" class="input" id="loanStartDate" value="${today()}" required>
+          </div>
+          <div class="input-group">
+            <label for="loanInstallments">Number of Installments <span class="text-muted text-sm">(optional, for amortization)</span></label>
+            <input type="number" class="input" id="loanInstallments" placeholder="e.g. 3" step="1" min="1">
           </div>
         </div>
         <div class="form-row">
@@ -260,6 +313,8 @@ function renderLoanList(loans, currency) {
       : { icon: '📥', label: 'Borrowed from', color: 'var(--purple)' };
     const nameLabel = isPerson ? loan.person : `${sourceInfo.icon} ${loan.institution || sourceInfo.label}`;
     const freqBadge = getFrequencyBadge(loan.frequency);
+    const netAmount = loan.amount - (loan.fee || 0);
+    const amortization = calcAmortization(loan.amount, loan.rate, loan.numInstallments);
 
     return `
       <div class="panel" style="margin-bottom:12px;border-left:3px solid ${sourceInfo.color}" data-loan-id="${escapeHTML(loan.id)}">
@@ -292,9 +347,30 @@ function renderLoanList(loans, currency) {
           ${daysLeft !== null && status !== 'settled' ? `<span style="color:${daysLeft < 0 ? 'var(--red)' : 'var(--text3)'}">${daysLeft < 0 ? Math.abs(daysLeft) + ' days overdue' : daysLeft + ' days left'}</span>` : ''}
         </div>
 
-        ${loan.rate > 0 ? `<div class="text-sm text-muted" style="margin-bottom:4px">Interest: ${loan.rate}%</div>` : ''}
+        ${(loan.fee > 0 || loan.principal) ? `
+          <div style="border-top:1px dashed var(--border);padding-top:6px;margin-top:6px">
+            ${loan.fee > 0 ? `<div class="flex flex-between text-sm" style="padding:2px 0"><span class="text-muted">Processing Fee</span><span style="color:var(--red)">-${fmt(loan.fee, currency)}</span></div>` : ''}
+            ${loan.principal && loan.principal !== loan.amount ? `<div class="flex flex-between text-sm" style="padding:2px 0"><span class="text-muted">Net Amount (in hand)</span><span style="font-weight:500">${fmt(loan.principal - (loan.fee || 0), currency)}</span></div>` : ''}
+          </div>
+        ` : ''}
+
+        ${loan.rate > 0 ? `<div class="text-sm text-muted" style="margin-bottom:4px">Interest: ${loan.rate}%/month${loan.numInstallments ? ` · ${loan.numInstallments} installments` : ''}</div>` : ''}
         ${loan.installment ? `<div class="text-sm text-muted" style="margin-bottom:4px">Installment: ${fmt(loan.installment, currency)} ${loan.frequency ? '/ ' + FREQUENCY_LABELS[loan.frequency] : ''}</div>` : ''}
         ${loan.notes ? `<div class="text-sm text-muted" style="margin-bottom:4px;font-style:italic">"${escapeHTML(loan.notes)}"</div>` : ''}
+
+        ${amortization ? `
+          <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:8px">
+            <div class="text-sm" style="font-weight:500;margin-bottom:6px">Amortization Schedule</div>
+            ${amortization.map((a, i) => {
+              const dueDate = loan.startDate && loan.frequency ? getNextDueDate(loan.startDate, loan.frequency, i + 1) : `Month ${a.month}`;
+              return `<div class="flex flex-between text-sm" style="padding:2px 0;border-left:2px solid ${i < Math.ceil(loan.paid / (loan.amount / (loan.numInstallments || 1))) ? 'var(--green)' : 'var(--bg3)'};padding-left:8px;margin-bottom:2px">
+                <span class="text-muted">${dueDate}</span>
+                <span style="font-weight:500">${fmt(a.payment, currency)}</span>
+                <span class="text-muted text-sm">P${fmt(a.principal, currency)} + I${fmt(a.interest, currency)}</span>
+              </div>`;
+            }).join('')}
+          </div>
+        ` : ''}
 
         ${loan.payments && loan.payments.length > 0 ? `
           <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:8px">
@@ -330,6 +406,7 @@ function bindEvents(container, loans, currency) {
     document.getElementById('loanAccount').value = '';
     document.getElementById('loanAmount').value = '';
     document.getElementById('loanPrincipal').value = '';
+    document.getElementById('loanFee').value = '';
     document.getElementById('loanPaid').value = '0';
     document.getElementById('loanStartDate').value = today();
     document.getElementById('loanDueDate').value = '';
@@ -337,6 +414,7 @@ function bindEvents(container, loans, currency) {
     document.getElementById('loanNotes').value = '';
     document.getElementById('loanFrequency').value = '';
     document.getElementById('loanInstallment').value = '';
+    document.getElementById('loanInstallments').value = '';
     document.getElementById('installmentGroup').style.display = 'none';
     toggleSourceFields('person');
     document.querySelectorAll('#loanTypeTabs .tab').forEach(t => t.classList.remove('active'));
@@ -397,6 +475,7 @@ function bindEvents(container, loans, currency) {
     const account = !isPerson ? document.getElementById('loanAccount').value.trim() : '';
     const amount = parseFloat(document.getElementById('loanAmount').value) || 0;
     const principal = parseFloat(document.getElementById('loanPrincipal').value) || amount;
+    const fee = parseFloat(document.getElementById('loanFee').value) || 0;
     const paid = parseFloat(document.getElementById('loanPaid').value) || 0;
     const startDate = document.getElementById('loanStartDate').value;
     const dueDate = document.getElementById('loanDueDate').value || null;
@@ -404,6 +483,7 @@ function bindEvents(container, loans, currency) {
     const notes = document.getElementById('loanNotes').value.trim();
     const frequency = document.getElementById('loanFrequency').value || null;
     const installment = parseFloat(document.getElementById('loanInstallment').value) || null;
+    const numInstallments = parseInt(document.getElementById('loanInstallments').value) || null;
 
     if (isPerson && !person) { toastError('Person name is required'); return; }
     if (!isPerson && !institution) { toastError('Institution name is required'); return; }
@@ -413,7 +493,8 @@ function bindEvents(container, loans, currency) {
 
     const data = {
       type, source, person: displayName, phone, institution, account,
-      amount, principal, paid, startDate, dueDate, rate, notes, frequency, installment,
+      amount, principal, fee, paid, startDate, dueDate, rate, notes, frequency, installment,
+      numInstallments,
       status: paid >= amount ? 'settled' : 'active',
       payments: [],
       updatedAt: new Date().toISOString()
@@ -625,6 +706,7 @@ function bindDataActions(container, loans, currency) {
       }
       document.getElementById('loanAmount').value = loan.amount;
       document.getElementById('loanPrincipal').value = loan.principal || loan.amount;
+      document.getElementById('loanFee').value = loan.fee || '';
       document.getElementById('loanPaid').value = loan.paid;
       document.getElementById('loanStartDate').value = loan.startDate;
       document.getElementById('loanDueDate').value = loan.dueDate || '';
@@ -632,6 +714,7 @@ function bindDataActions(container, loans, currency) {
       document.getElementById('loanNotes').value = loan.notes || '';
       document.getElementById('loanFrequency').value = loan.frequency || '';
       document.getElementById('loanInstallment').value = loan.installment || '';
+      document.getElementById('loanInstallments').value = loan.numInstallments || '';
       document.getElementById('installmentGroup').style.display = loan.frequency ? '' : 'none';
       document.querySelectorAll('#loanTypeTabs .tab').forEach(t => t.classList.remove('active'));
       document.querySelector(`#loanTypeTabs .tab[data-type="${loan.type}"]`).classList.add('active');
